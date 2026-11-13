@@ -1,0 +1,157 @@
+:host {
+  display: block;
+}
+
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 860px;
+  font-size: 13px;
+
+  th,
+  td {
+    border: 1px solid var(--mat-sys-outline-variant);
+    padding: 4px;
+    vertical-align: top;
+  }
+
+  th {
+    background: var(--mat-sys-surface-container);
+    font-weight: 500;
+    text-align: center;
+  }
+
+  .day {
+    font-weight: 600;
+  }
+  .date {
+    font-size: 11px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.name-col {
+  width: 150px;
+  text-align: left !important;
+  vertical-align: middle !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emp-name {
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.hrs-col {
+  width: 56px;
+  text-align: center;
+  vertical-align: middle !important;
+  font-weight: 500;
+
+  &.over {
+    color: var(--mat-sys-error);
+  }
+  &.under {
+    color: #b45309;
+  }
+}
+
+.cell {
+  height: 40px;
+}
+
+.editable .cell {
+  cursor: pointer;
+  &:hover {
+    background: var(--mat-sys-surface-container-low);
+  }
+}
+
+.chip {
+  --c: #64748b;
+  display: flex;
+  flex-direction: column;
+  border-left: 4px solid var(--c);
+  background: color-mix(in srgb, var(--c) 14%, white);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-bottom: 3px;
+  line-height: 1.25;
+  cursor: default;
+
+  .chip-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chip-time {
+    font-size: 11px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &.error {
+    outline: 2px solid var(--mat-sys-error);
+    background: var(--mat-sys-error-container);
+  }
+
+  &.open {
+    border-left-style: dashed;
+    background: transparent;
+    border: 1px dashed var(--c);
+    border-left: 4px dashed var(--c);
+  }
+}
+
+.editable .chip {
+  cursor: grab;
+}
+.editable .chip.open {
+  cursor: pointer;
+}
+
+.open-row td {
+  background: #fffbeb;
+}
+
+.open-label {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.slot-cell.na {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    var(--mat-sys-surface-container) 6px,
+    var(--mat-sys-surface-container) 8px
+  );
+}
+
+.slot-time {
+  margin-bottom: 2px;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+
+  &.error {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+  &.empty-pos {
+    border: 1px dashed #d97706;
+    color: #b45309;
+    font-size: 12px;
+    justify-content: center;
+    margin-top: 2px;
+  }
+}

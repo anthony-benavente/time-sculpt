@@ -1,0 +1,129 @@
+@if (schedule(); as s) {
+  <div class="page">
+    <div class="page-header">
+      <a mat-icon-button routerLink="/schedules" matTooltip="All schedules"><mat-icon>arrow_back</mat-icon></a>
+      <input
+        class="title-input"
+        [value]="s.name"
+        (change)="rename($any($event.target).value)"
+        (keydown.enter)="$any($event.target).blur()"
+        aria-label="Schedule name"
+      />
+      <button mat-stroked-button (click)="undo()" [disabled]="!canUndo()"><mat-icon>undo</mat-icon>Undo</button>
+      <button mat-stroked-button [matMenuTriggerFor]="fillMenu" [disabled]="openCount() === 0">
+        <mat-icon>auto_fix_high</mat-icon>Auto-fill open ({{ openCount() }})
+      </button>
+      <mat-menu #fillMenu>
+        <button mat-menu-item (click)="autoFill('week')">This week only</button>
+        <button mat-menu-item (click)="autoFill('all')">All weeks</button>
+      </mat-menu>
+      <button mat-icon-button [matMenuTriggerFor]="moreMenu" matTooltip="More"><mat-icon>more_vert</mat-icon></button>
+      <mat-menu #moreMenu>
+        <button mat-menu-item (click)="clearWeek()"><mat-icon>clear_all</mat-icon>Clear this week</button>
+      </mat-menu>
+      <a mat-flat-button [routerLink]="['/schedules', s.id, 'print']"><mat-icon>print</mat-icon>Print</a>
+    </div>
+
+    <div class="row" style="margin-bottom: 12px">
+      @if (weekTabs().length > 1) {
+        <mat-button-toggle-group [value]="week()" (change)="week.set($event.value)" hideSingleSelectionIndicator>
+          @for (w of weekTabs(); track w.i) {
+            <mat-button-toggle [value]="w.i">Week of {{ w.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      }
+      <span class="spacer"></span>
+      <mat-button-toggle-group [value]="mode()" (change)="mode.set($event.value)" hideSingleSelectionIndicator>
+        <mat-button-toggle value="employee"><mat-icon>person</mat-icon> By employee</mat-button-toggle>
+        <mat-button-toggle value="shift"><mat-icon>view_agenda</mat-icon> By shift</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    <div class="layout">
+      <div class="card" style="padding: 8px">
+        <app-schedule-grid
+          [slots]="s.slots"
+          [employees]="employees.employees()"
+          [templates]="templates()"
+          [startDate]="s.startDate"
+          [week]="week()"
+          [mode]="mode()"
+          [editable]="true"
+          [violations]="violations()"
+          (chipClick)="onChip($event)"
+          (cellClick)="onCell($event)"
+          (slotClick)="openSlot($event)"
+          (move)="onMove($event)"
+        />
+        <p class="small muted" style="margin: 8px 4px 0">
+          Click a shift to change who works it. Click an empty day to add someone. Drag a shift onto another person on
+          the same day to swap.
+        </p>
+
+        @if (cellTarget(); as ct) {
+          <div class="card" style="margin: 12px 4px 0; background: var(--mat-sys-surface-container-low)">
+            <div class="row">
+              <strong>
+                Add {{ employees.byId().get(ct.employeeId)?.name }} on {{ prettyDate(ct.date) }}:
+              </strong>
+              <span class="spacer"></span>
+              <button mat-icon-button (click)="cellTarget.set(null)"><mat-icon>close</mat-icon></button>
+            </div>
+            @if (ct.slots.length === 0) {
+              <p class="muted small">No other shifts on this day.</p>
+            }
+            <div class="row">
+              @for (slot of ct.slots; track slot.id) {
+                <button mat-stroked-button (click)="addToSlot(slot, ct.employeeId); cellTarget.set(null)">
+                  {{ slotLabel(slot) }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="card issues">
+        <h2>
+          Checks
+          @if (errors().length === 0 && warnings().length === 0) {
+            <span class="tag ok">All good</span>
+          }
+        </h2>
+        @if (errors().length) {
+          <p class="small" style="color: var(--mat-sys-error); margin: 0 0 4px">
+            <b>{{ errors().length }} rule break(s)</b>
+          </p>
+          <ul class="list-plain small">
+            @for (v of errors(); track $index) {
+              <li style="cursor: pointer" (click)="v.slotId && jumpTo(v.slotId)">
+                <mat-icon inline style="color: var(--mat-sys-error)">block</mat-icon>{{ v.message }}
+              </li>
+            }
+          </ul>
+        }
+        @if (warnings().length) {
+          <p class="small" style="color: #b45309; margin: 12px 0 4px"><b>{{ warnings().length }} warning(s)</b></p>
+          <ul class="list-plain small">
+            @for (v of warnings(); track $index) {
+              <li style="cursor: pointer" (click)="v.slotId && jumpTo(v.slotId)">
+                <mat-icon inline style="color: #d97706">info</mat-icon>{{ v.message }}
+              </li>
+            }
+          </ul>
+        }
+        @if (s.notes) {
+          <p class="small muted" style="margin-top: 12px"><mat-icon inline>auto_awesome</mat-icon> {{ s.notes }}</p>
+        }
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="page">
+    <div class="card empty">
+      <mat-icon>event_busy</mat-icon>
+      <p>Schedule not found.</p>
+      <a mat-flat-button routerLink="/schedules">All schedules</a>
+    </div>
+  </div>
+}

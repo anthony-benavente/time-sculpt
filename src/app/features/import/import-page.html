@@ -1,0 +1,196 @@
+<div class="page" style="max-width: 1200px">
+  <div class="page-header">
+    <h1>Import from Microsoft Teams Shifts</h1>
+  </div>
+
+  @if (!plan()) {
+    <div class="card">
+      <h2>1. Export from Teams</h2>
+      <ol class="steps">
+        <li>In Teams, open <b>Shifts</b> and go to your team's schedule.</li>
+        <li>Select <b>More options (…)</b> at the top right → <b>Export schedule</b>.</li>
+        <li>Pick the start and end dates.</li>
+        <li>Turn on <b>"Export in a format that can be imported"</b>, then select <b>Export</b>.</li>
+      </ol>
+      <p class="small muted">
+        The downloaded .xlsx has Shifts, Open Shifts, Time Off and Members sheets. A .csv saved from the Shifts sheet
+        also works.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. Upload the file</h2>
+      <div
+        class="drop"
+        [class.over]="dragOver()"
+        (click)="fileInput.click()"
+        (dragover)="$event.preventDefault(); dragOver.set(true)"
+        (dragleave)="dragOver.set(false)"
+        (drop)="onDrop($event)"
+      >
+        @if (reading()) {
+          <mat-spinner diameter="32" style="margin: 0 auto" />
+        } @else {
+          <mat-icon style="font-size: 40px; width: 40px; height: 40px">upload_file</mat-icon>
+          <p><b>Drop the Teams export here</b> or click to choose a file (.xlsx or .csv)</p>
+        }
+      </div>
+      <input #fileInput type="file" accept=".xlsx,.csv" hidden (change)="onInput($event)" />
+      @if (readError() || parsed().error; as err) {
+        <div class="error-box" style="margin-top: 12px">
+          <mat-icon inline>error</mat-icon> {{ fileName() }}: {{ err }}
+        </div>
+      }
+    </div>
+  } @else {
+    @let p = plan()!;
+    @let wb = parsed().wb!;
+    <div class="card">
+      <div class="row" style="margin-bottom: 12px">
+        <h2 style="margin: 0"><mat-icon inline>description</mat-icon> {{ fileName() }}</h2>
+        <span class="spacer"></span>
+        <button mat-button (click)="reset()"><mat-icon>close</mat-icon>Choose another file</button>
+      </div>
+
+      <div class="summary">
+        @if (p.range) {
+          <div class="stat"><b>{{ prettyDate(p.range.start) }} – {{ prettyDate(p.range.end) }}</b><span class="small muted">dates</span></div>
+        }
+        <div class="stat"><b>{{ wb.shifts.length }}</b><span class="small muted">shifts</span></div>
+        <div class="stat"><b>{{ wb.openShifts.length }}</b><span class="small muted">open shifts</span></div>
+        <div class="stat"><b>{{ wb.timeOff.length }}</b><span class="small muted">time off</span></div>
+        <div class="stat"><b>{{ matchedCount() }} / {{ newCount() }}</b><span class="small muted">people matched / new</span></div>
+      </div>
+
+      <div class="row small" style="margin-bottom: 8px">
+        <span>Dates in this file are</span>
+        <mat-button-toggle-group
+          [value]="wb.dateOrder"
+          (change)="dateOrder.set($event.value)"
+          hideSingleSelectionIndicator
+        >
+          <mat-button-toggle value="mdy">Month/Day (US)</mat-button-toggle>
+          <mat-button-toggle value="dmy">Day/Month</mat-button-toggle>
+        </mat-button-toggle-group>
+        @if (wb.dateOrderAmbiguous) {
+          <span class="tag warn">Couldn't tell from the file. Please check the dates below.</span>
+        }
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>What to import</h2>
+      <div class="options">
+        <mat-checkbox
+          [checked]="opts().importSchedule"
+          (change)="setOpt('importSchedule', $event.checked)"
+          [disabled]="!wb.shifts.length && !wb.openShifts.length"
+        >
+          <b>Shifts</b>: create a schedule ({{ wb.shifts.length + wb.openShifts.length }} shifts)
+        </mat-checkbox>
+        <mat-checkbox
+          [checked]="opts().createEmployees"
+          (change)="setOpt('createEmployees', $event.checked)"
+          [disabled]="newCount() === 0"
+        >
+          <b>Employees</b>: add {{ newCount() }} new
+          {{ newCount() === 1 ? 'person' : 'people' }} (their Teams group becomes a role)
+        </mat-checkbox>
+        <mat-checkbox
+          [checked]="opts().importTimeOff"
+          (change)="setOpt('importTimeOff', $event.checked)"
+          [disabled]="!wb.timeOff.length"
+        >
+          <b>Time off</b>: add {{ wb.timeOff.length }} entr{{ wb.timeOff.length === 1 ? 'y' : 'ies' }} as restrictions
+        </mat-checkbox>
+        <mat-checkbox
+          [checked]="opts().createTemplates"
+          (change)="setOpt('createTemplates', $event.checked)"
+          [disabled]="!wb.shifts.length && !wb.openShifts.length"
+        >
+          <b>Shift templates</b>: save these shift patterns so you can generate future schedules from them
+        </mat-checkbox>
+      </div>
+
+      <h2 style="margin-top: 16px">People</h2>
+      <div class="people table-scroll">
+        <table class="data small">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Group</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of p.people; track m.person.email + m.person.name) {
+              <tr>
+                <td>{{ m.person.name }}</td>
+                <td class="muted">{{ m.person.email }}</td>
+                <td>{{ m.person.groups.join(', ') }}</td>
+                <td>
+                  @if (m.existing) {
+                    <span class="tag ok">Matches {{ m.existing.name }}</span>
+                  } @else if (m.created) {
+                    <span class="tag">New employee</span>
+                  } @else {
+                    <span class="tag warn">Not imported</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (p.warnings.length) {
+        <details style="margin-top: 12px" [open]="p.warnings.length <= 5">
+          <summary class="small" style="color: #b45309">{{ p.warnings.length }} note(s)</summary>
+          <ul class="list-plain small">
+            @for (w of p.warnings; track $index) {
+              <li><mat-icon inline style="color: #d97706">info</mat-icon>{{ w }}</li>
+            }
+          </ul>
+        </details>
+      }
+
+      <div class="row" style="margin-top: 16px">
+        <span class="spacer"></span>
+        <a mat-button routerLink="/schedules">Cancel</a>
+        <button mat-flat-button (click)="doImport()" [disabled]="!canImport()">
+          <mat-icon>download_done</mat-icon>Import
+        </button>
+      </div>
+    </div>
+
+    @if (p.schedule; as s) {
+      <div class="card">
+        <div class="row" style="margin-bottom: 8px">
+          <h2 style="margin: 0">Preview</h2>
+          <span class="spacer"></span>
+          @if (weekTabs().length > 1) {
+            <mat-button-toggle-group
+              [value]="previewWeek()"
+              (change)="previewWeek.set($event.value)"
+              hideSingleSelectionIndicator
+            >
+              @for (w of weekTabs(); track w.i) {
+                <mat-button-toggle [value]="w.i">Week of {{ w.label }}</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+          }
+        </div>
+        <app-schedule-grid
+          [slots]="s.slots"
+          [employees]="previewEmployees()"
+          [templates]="previewTemplates()"
+          [startDate]="s.startDate"
+          [week]="previewWeek()"
+          [violations]="previewViolations()"
+        />
+        <p class="small muted">Rule checks use the limits and availability you've set in this app.</p>
+      </div>
+    }
+  }
+</div>

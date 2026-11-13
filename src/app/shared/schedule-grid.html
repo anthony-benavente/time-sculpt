@@ -1,0 +1,122 @@
+@if (mode() === 'employee') {
+  <div class="table-scroll">
+    <table class="grid" [class.editable]="editable()">
+      <thead>
+        <tr>
+          <th class="name-col">Employee</th>
+          @for (d of dates(); track d) {
+            <th>
+              <div class="day">{{ weekdayName(d) }}</div>
+              <div class="date">{{ prettyDate(d) }}</div>
+            </th>
+          }
+          <th class="hrs-col">Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of rows(); track e.id) {
+          <tr>
+            <td class="name-col">
+              <span class="color-dot" [style.background]="e.color"></span>
+              <span class="emp-name">{{ e.name }}</span>
+            </td>
+            @for (d of dates(); track d) {
+              <td
+                class="cell"
+                (click)="editable() && cellClick.emit({ employeeId: e.id, date: d })"
+                (dragover)="dragOver($event, d)"
+                (drop)="drop($event, e.id)"
+              >
+                @for (s of byEmpDate().get(e.id)?.get(d) ?? []; track s.id) {
+                  <div
+                    class="chip"
+                    [class.error]="errorKeys().has(s.id + '|' + e.id)"
+                    [style.--c]="color(s)"
+                    [draggable]="editable()"
+                    (dragstart)="dragStart($event, s, e.id)"
+                    (dragend)="dragEnd()"
+                    (click)="$event.stopPropagation(); editable() && chipClick.emit({ slot: s, employeeId: e.id })"
+                    [matTooltip]="errorKeys().get(s.id + '|' + e.id)?.join('\n') ?? ''"
+                  >
+                    <span class="chip-name">{{ s.name }}</span>
+                    <span class="chip-time">{{ prettyRange(s.start, s.end) }}</span>
+                  </div>
+                }
+              </td>
+            }
+            <td class="hrs-col" [class]="hoursClass(e)">{{ hours(e.id) }}</td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr class="open-row">
+          <td class="name-col open-label">Open shifts</td>
+          @for (d of dates(); track d) {
+            <td>
+              @for (s of openByDate().get(d) ?? []; track s.id) {
+                <div
+                  class="chip open"
+                  [style.--c]="color(s)"
+                  (click)="editable() && slotClick.emit(s)"
+                  [matTooltip]="editable() ? 'Click to assign someone' : ''"
+                >
+                  <span class="chip-name">{{ s.name }} ×{{ s.headcount - s.assignedEmployeeIds.length }}</span>
+                  <span class="chip-time">{{ prettyRange(s.start, s.end) }}</span>
+                </div>
+              }
+            </td>
+          }
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+} @else {
+  <div class="table-scroll">
+    <table class="grid" [class.editable]="editable()">
+      <thead>
+        <tr>
+          <th class="name-col">Shift</th>
+          @for (d of dates(); track d) {
+            <th>
+              <div class="day">{{ weekdayName(d) }}</div>
+              <div class="date">{{ prettyDate(d) }}</div>
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of shiftRows(); track row.key) {
+          <tr>
+            <td class="name-col">
+              <span class="color-dot" [style.background]="row.color"></span>
+              <span class="emp-name">{{ row.name }}</span>
+            </td>
+            @for (d of dates(); track d) {
+              @let s = row.byDate.get(d);
+              <td class="cell slot-cell" [class.na]="!s" (click)="s && editable() && slotClick.emit(s)">
+                @if (s) {
+                  <div class="slot-time muted small">{{ prettyRange(s.start, s.end) }}</div>
+                  @for (id of s.assignedEmployeeIds; track id) {
+                    @let emp = empById().get(id);
+                    <div
+                      class="person"
+                      [class.error]="errorKeys().has(s.id + '|' + id)"
+                      [matTooltip]="errorKeys().get(s.id + '|' + id)?.join('\n') ?? ''"
+                    >
+                      <span class="color-dot" [style.background]="emp?.color ?? '#999'"></span>
+                      {{ emp?.name ?? 'Unknown' }}
+                    </div>
+                  }
+                  @for (m of missing(s); track m) {
+                    <div class="person empty-pos">Open</div>
+                  }
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

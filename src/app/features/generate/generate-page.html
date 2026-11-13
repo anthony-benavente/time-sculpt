@@ -1,0 +1,152 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Generate a schedule</h1>
+  </div>
+
+  @if (!ready()) {
+    <div class="card empty">
+      <mat-icon>info</mat-icon>
+      <p>You need at least one active employee and one shift before generating a schedule.</p>
+      <div class="row" style="justify-content: center">
+        <a mat-stroked-button routerLink="/employees">Employees ({{ employees.activeEmployees().length }})</a>
+        <a mat-stroked-button routerLink="/shifts">Shifts ({{ templateStore.templates().length }})</a>
+      </div>
+    </div>
+  } @else {
+    <div class="card">
+      <div class="options">
+        <mat-form-field style="width: 180px">
+          <mat-label>Start date</mat-label>
+          <input matInput [matDatepicker]="dp" [(ngModel)]="startDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="dp" />
+          <mat-datepicker #dp />
+        </mat-form-field>
+        <mat-form-field style="width: 120px">
+          <mat-label>Weeks</mat-label>
+          <mat-select [(ngModel)]="weeks">
+            @for (w of weekOptions; track w) {
+              <mat-option [value]="w">{{ w }} week{{ w > 1 ? 's' : '' }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-button-toggle-group [(ngModel)]="method" hideSingleSelectionIndicator>
+          <mat-button-toggle value="algorithm"><mat-icon>bolt</mat-icon> Built-in algorithm</mat-button-toggle>
+          <mat-button-toggle value="ai"><mat-icon>auto_awesome</mat-icon> Ask Claude</mat-button-toggle>
+        </mat-button-toggle-group>
+        <span class="spacer"></span>
+        @if (running()) {
+          <mat-spinner diameter="28" />
+          @if (method === 'ai') {
+            <button mat-button (click)="cancel()">Cancel</button>
+          }
+        } @else {
+          <button mat-flat-button (click)="run()" [disabled]="method === 'ai' && !settingsStore.hasApiKey()">
+            <mat-icon>play_arrow</mat-icon>{{ draft() ? 'Generate again' : 'Generate' }}
+          </button>
+        }
+      </div>
+
+      @if (method === 'ai') {
+        @if (!settingsStore.hasApiKey()) {
+          <p class="small">
+            <mat-icon inline>key</mat-icon> Add your Anthropic API key in <a routerLink="/settings">Settings</a> to use
+            Claude.
+          </p>
+        } @else {
+          <mat-form-field class="full" style="margin-top: 8px">
+            <mat-label>Extra instructions for Claude (optional)</mat-label>
+            <textarea
+              matInput
+              rows="2"
+              [(ngModel)]="extraInstructions"
+              placeholder="e.g. Try to give Sam weekends off. Pair new hires with a Keyholder."
+            ></textarea>
+          </mat-form-field>
+          <p class="small muted">
+            Claude can take a minute or two for multi-week schedules. Its result is checked against your rules before
+            you save.
+          </p>
+        }
+      }
+
+      @if (error(); as err) {
+        <div class="error-box"><mat-icon inline>error</mat-icon> {{ err }}</div>
+      }
+    </div>
+
+    @if (draft(); as d) {
+      <div class="card">
+        <div class="row" style="margin-bottom: 12px">
+          <h2 style="margin: 0">Preview</h2>
+          <span class="tag">{{ d.source === 'ai' ? 'Made by Claude' : 'Built-in algorithm' }}</span>
+          <span class="spacer"></span>
+          @if (errors().length) {
+            <button mat-stroked-button (click)="fixWithAlgorithm()">
+              <mat-icon>build</mat-icon>Fix rule breaks with algorithm
+            </button>
+          }
+          <button mat-flat-button (click)="save()"><mat-icon>save</mat-icon>Save schedule</button>
+        </div>
+
+        @if (stats(); as s) {
+          <div class="summary">
+            <div class="stat"><b>{{ s.pct }}%</b><span class="small muted">positions filled</span></div>
+            <div class="stat"><b>{{ s.filled }}/{{ s.needed }}</b><span class="small muted">people-shifts</span></div>
+            <div class="stat">
+              <b [style.color]="errors().length ? 'var(--mat-sys-error)' : '#059669'">{{ errors().length }}</b>
+              <span class="small muted">rule breaks</span>
+            </div>
+          </div>
+        }
+
+        @if (d.notes) {
+          <p><mat-icon inline>auto_awesome</mat-icon> <em>{{ d.notes }}</em></p>
+        }
+
+        @if (d.unfilled.length || d.warnings.length || errors().length) {
+          <div class="issues">
+            <ul class="list-plain small">
+              @for (v of errors(); track $index) {
+                <li><mat-icon inline style="color: var(--mat-sys-error)">block</mat-icon>{{ v.message }}</li>
+              }
+              @for (g of d.unfilled; track g.slotId) {
+                <li>
+                  <mat-icon inline style="color: #d97706">person_off</mat-icon>
+                  <b>{{ g.name }}</b>&nbsp;{{ prettyDate(g.date) }} short {{ g.missing }} — {{ g.reason }}
+                </li>
+              }
+              @for (w of d.warnings; track $index) {
+                <li><mat-icon inline style="color: #d97706">info</mat-icon>{{ w }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="row" style="margin: 12px 0 8px">
+          @if (weekTabs().length > 1) {
+            <mat-button-toggle-group [value]="previewWeek()" (change)="previewWeek.set($event.value)" hideSingleSelectionIndicator>
+              @for (w of weekTabs(); track w.i) {
+                <mat-button-toggle [value]="w.i">Week of {{ w.label }}</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+          }
+          <span class="spacer"></span>
+          <mat-button-toggle-group [value]="previewMode()" (change)="previewMode.set($event.value)" hideSingleSelectionIndicator>
+            <mat-button-toggle value="employee">By employee</mat-button-toggle>
+            <mat-button-toggle value="shift">By shift</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+        <app-schedule-grid
+          [slots]="d.slots"
+          [employees]="employees.employees()"
+          [templates]="templateStore.templates()"
+          [startDate]="d.startDate"
+          [week]="previewWeek()"
+          [mode]="previewMode()"
+          [violations]="violations()"
+        />
+        <p class="small muted">You can make edits after saving.</p>
+      </div>
+    }
+  }
+</div>

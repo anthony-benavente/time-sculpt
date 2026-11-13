@@ -1,0 +1,183 @@
+@page {
+  size: landscape;
+  margin: 10mm;
+}
+
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  background: var(--mat-sys-surface-container);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  .weeks {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 4px;
+  }
+}
+
+.print-root {
+  padding: 16px;
+  background: #e5e7eb;
+  color: #111;
+
+  .sheet {
+    background: #fff;
+    width: 277mm; /* A4/Letter landscape minus margins */
+    min-height: 180mm;
+    margin: 0 auto 16px;
+    padding: 8mm;
+    box-sizing: border-box;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+    display: flex;
+    flex-direction: column;
+    font-family: Roboto, Arial, sans-serif;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #111;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+
+    .biz {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .title {
+      font-size: 13px;
+    }
+    .meta {
+      font-size: 11px;
+      color: #444;
+    }
+  }
+
+  table.pt {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 11px;
+
+    th,
+    td {
+      border: 1px solid #444;
+      padding: 3px 4px;
+      vertical-align: top;
+    }
+    th {
+      background: #f3f4f6;
+      font-size: 11px;
+      text-align: center;
+      .d {
+        font-weight: 400;
+        color: #444;
+      }
+    }
+    .n {
+      width: 24mm;
+      text-align: left;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .h {
+      width: 10mm;
+      text-align: center;
+      vertical-align: middle;
+      font-weight: 600;
+    }
+    .c {
+      text-align: center;
+    }
+    td.off {
+      background: #fafafa;
+    }
+    tbody tr:nth-child(even) td:not(.off) {
+      background: #fcfcfd;
+    }
+    tfoot td {
+      font-weight: 600;
+      background: #f3f4f6;
+    }
+    .empty-row {
+      text-align: center;
+      padding: 16px;
+      color: #666;
+    }
+  }
+
+  .sh {
+    border-left: 4px solid #999;
+    padding-left: 4px;
+    margin-bottom: 2px;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+
+    span {
+      font-size: 10px;
+      color: #333;
+    }
+  }
+
+  .p {
+    line-height: 1.35;
+    &.open {
+      color: #888;
+    }
+  }
+
+  .open-note {
+    font-size: 10px;
+    margin: 6px 0 0;
+  }
+
+  footer {
+    margin-top: auto;
+    padding-top: 6px;
+    font-size: 9px;
+    color: #666;
+    text-align: right;
+  }
+
+  &.mono .sh {
+    border-left-color: #111 !important;
+  }
+}
+
+@media print {
+  .print-root {
+    padding: 0;
+    background: #fff;
+
+    .sheet {
+      width: auto;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      box-shadow: none;
+      break-after: page;
+      page-break-after: always;
+    }
+    .sheet:last-child {
+      break-after: auto;
+      page-break-after: auto;
+    }
+    table.pt tr {
+      break-inside: avoid;
+    }
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

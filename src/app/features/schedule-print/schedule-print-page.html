@@ -1,0 +1,132 @@
+@if (schedule(); as s) {
+  <div class="print-toolbar no-print">
+    <a mat-button [routerLink]="['/schedules', s.id]"><mat-icon>arrow_back</mat-icon>Back</a>
+    <mat-button-toggle-group [value]="mode()" (change)="mode.set($event.value)" hideSingleSelectionIndicator>
+      <mat-button-toggle value="employee">By employee</mat-button-toggle>
+      <mat-button-toggle value="shift">By shift</mat-button-toggle>
+    </mat-button-toggle-group>
+    <mat-checkbox [checked]="showColor()" (change)="showColor.set($event.checked)">Color</mat-checkbox>
+    @if (mode() === 'employee') {
+      <mat-checkbox [checked]="!hideEmpty()" (change)="hideEmpty.set(!$event.checked)">Include people with no shifts</mat-checkbox>
+    }
+    @if (weeks().length > 1) {
+      <span class="weeks">
+        Weeks:
+        @for (w of weeks(); track w.index) {
+          <mat-checkbox [checked]="isSelected(w.index)" (change)="toggleWeek(w.index, $event.checked)">
+            {{ prettyDate(w.dates[0]) }}
+          </mat-checkbox>
+        }
+      </span>
+    }
+    <span class="spacer"></span>
+    <span class="muted small">Landscape, one week per page</span>
+    <button mat-flat-button (click)="print()"><mat-icon>print</mat-icon>Print</button>
+  </div>
+
+  <div class="print-root" [class.mono]="!showColor()">
+    @for (w of visibleWeeks(); track w.index) {
+      <section class="sheet">
+        <header>
+          <div>
+            <div class="biz">{{ settings().businessName }}</div>
+            <div class="title">Work schedule · {{ prettyDate(w.dates[0]) }} – {{ prettyDate(w.dates[6]) }}, {{ w.dates[6].slice(0, 4) }}</div>
+          </div>
+          <div class="meta">
+            {{ s.name }}
+            @if (s.weeks > 1) {
+              · Week {{ w.index + 1 }} of {{ s.weeks }}
+            }
+          </div>
+        </header>
+
+        @if (mode() === 'employee') {
+          <table class="pt">
+            <thead>
+              <tr>
+                <th class="n">Employee</th>
+                @for (d of w.dates; track d) {
+                  <th>{{ weekday(d) }}<br /><span class="d">{{ prettyDate(d) }}</span></th>
+                }
+                <th class="h">Hrs</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of w.employees; track row.emp.id) {
+                <tr>
+                  <td class="n">{{ row.emp.name }}</td>
+                  @for (day of row.days; track $index) {
+                    <td [class.off]="day.length === 0">
+                      @for (slot of day; track slot.id) {
+                        <div class="sh" [style.border-left-color]="colorOf(slot)">
+                          <b>{{ prettyRange(slot.start, slot.end) }}</b>
+                          <span>{{ slot.name }}</span>
+                        </div>
+                      }
+                    </td>
+                  }
+                  <td class="h">{{ row.hours }}</td>
+                </tr>
+              } @empty {
+                <tr><td [attr.colspan]="9" class="empty-row">No one is scheduled this week.</td></tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <td class="n">People working</td>
+                @for (c of w.dayCounts; track $index) {
+                  <td class="c">{{ c }}</td>
+                }
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        } @else {
+          <table class="pt">
+            <thead>
+              <tr>
+                <th class="n">Shift</th>
+                @for (d of w.dates; track d) {
+                  <th>{{ weekday(d) }}<br /><span class="d">{{ prettyDate(d) }}</span></th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of w.shiftRows; track $index) {
+                <tr>
+                  <td class="n">
+                    <div class="sh" [style.border-left-color]="row.color"><b>{{ row.name }}</b><span>{{ row.time }}</span></div>
+                  </td>
+                  @for (slot of row.cells; track $index) {
+                    <td [class.off]="!slot">
+                      @if (slot) {
+                        @for (id of slot.assignedEmployeeIds; track id) {
+                          <div class="p">{{ empName(id) }}</div>
+                        }
+                        @for (m of blanks(slot); track $index) {
+                          <div class="p open">________</div>
+                        }
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        @if (w.open.length) {
+          <p class="open-note">
+            <b>Open shifts:</b>
+            @for (o of w.open; track o.id; let last = $last) {
+              {{ weekday(o.date) }} {{ o.name }} {{ prettyRange(o.start, o.end) }} (need {{ o.headcount - o.assignedEmployeeIds.length }}){{ last ? '' : ';' }}
+            }
+          </p>
+        }
+        <footer>Printed {{ printedOn() }}</footer>
+      </section>
+    }
+  </div>
+} @else {
+  <p style="padding: 24px">Schedule not found. <a routerLink="/schedules">All schedules</a></p>
+}

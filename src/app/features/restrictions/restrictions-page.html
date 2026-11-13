@@ -1,0 +1,175 @@
+@if (employee(); as emp) {
+  <div class="page">
+    <div class="page-header">
+      <a mat-icon-button routerLink="/employees" matTooltip="Back to employees"><mat-icon>arrow_back</mat-icon></a>
+      <span class="color-dot" [style.background]="emp.color" style="width: 18px; height: 18px"></span>
+      <h1>{{ emp.name }} <span class="muted" style="font-size: 16px">— availability &amp; restrictions</span></h1>
+      <button mat-stroked-button (click)="editEmployee()"><mat-icon>edit</mat-icon>Edit details</button>
+    </div>
+
+    <div class="card">
+      <div class="limits">
+        @if (!emp.active) {
+          <span class="tag warn">Inactive</span>
+        }
+        @for (r of emp.roles; track r) {
+          <span class="tag">{{ r }}</span>
+        }
+        @if (emp.minHoursPerWeek) {
+          <span class="tag">Min {{ emp.minHoursPerWeek }}h/week</span>
+        }
+        @if (emp.maxHoursPerWeek) {
+          <span class="tag">Max {{ emp.maxHoursPerWeek }}h/week</span>
+        }
+        <span class="tag">Max {{ emp.maxShiftsPerDay || 1 }} shift(s)/day</span>
+        @if (emp.maxConsecutiveDays) {
+          <span class="tag">Max {{ emp.maxConsecutiveDays }} days in a row</span>
+        }
+        @if (emp.minRestHours) {
+          <span class="tag">{{ emp.minRestHours }}h rest between shifts</span>
+        }
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <div class="row" style="margin-bottom: 8px">
+          <h2 style="margin: 0">Weekly availability</h2>
+          <span class="spacer"></span>
+          <button mat-button (click)="clearWeekly()" [disabled]="weekly().length === 0">
+            <mat-icon>restart_alt</mat-icon>Clear
+          </button>
+        </div>
+        <p class="small muted" style="margin-top: 0">
+          Repeats every week. Shade the hours {{ emp.name }} can't work. Changes save automatically.
+        </p>
+        <app-availability-grid
+          [windows]="weekly()"
+          [weekStartsOn]="settings().weekStartsOn"
+          (changed)="saveWeekly($event)"
+        />
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Time off</h2>
+          <div class="add-form">
+            <mat-form-field class="wide">
+              <mat-label>Dates</mat-label>
+              <mat-date-range-input [rangePicker]="picker">
+                <input matStartDate placeholder="Start" [(ngModel)]="toStart" />
+                <input matEndDate placeholder="End" [(ngModel)]="toEnd" />
+              </mat-date-range-input>
+              <mat-datepicker-toggle matIconSuffix [for]="picker" />
+              <mat-date-range-picker #picker />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>From (optional)</mat-label>
+              <input matInput type="time" [(ngModel)]="toFrom" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Until (optional)</mat-label>
+              <input matInput type="time" [(ngModel)]="toUntil" />
+            </mat-form-field>
+            <mat-form-field class="wide">
+              <mat-label>Reason (optional)</mat-label>
+              <input matInput [(ngModel)]="toReason" (keydown.enter)="addTimeOff()" />
+            </mat-form-field>
+            <button mat-flat-button (click)="addTimeOff()" [disabled]="!toStart"><mat-icon>add</mat-icon>Add</button>
+          </div>
+          @if (upcomingTimeOff().length === 0) {
+            <p class="muted small">No upcoming time off.</p>
+          } @else {
+            <ul class="list-plain">
+              @for (t of upcomingTimeOff(); track t.id) {
+                <li>
+                  <mat-icon>beach_access</mat-icon>
+                  <span>{{ timeOffLabel(t) }}</span>
+                  @if (t.reason) {
+                    <span class="muted small">— {{ t.reason }}</span>
+                  }
+                  <span class="spacer"></span>
+                  <button mat-icon-button (click)="store.removeRestriction(t.id)" matTooltip="Remove">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          @if (pastTimeOff().length) {
+            <details style="margin-top: 8px">
+              <summary class="small muted">{{ pastTimeOff().length }} past entries</summary>
+              <ul class="list-plain">
+                @for (t of pastTimeOff(); track t.id) {
+                  <li class="muted">
+                    <span>{{ timeOffLabel(t) }}</span>
+                    <span class="spacer"></span>
+                    <button mat-icon-button (click)="store.removeRestriction(t.id)"><mat-icon>close</mat-icon></button>
+                  </li>
+                }
+              </ul>
+            </details>
+          }
+        </div>
+
+        <div class="card">
+          <h2>Preferences</h2>
+          <p class="small muted" style="margin-top: 0">Soft rules. The scheduler tries to honor them, but they never block coverage.</p>
+          <div class="add-form">
+            <mat-button-toggle-group [(ngModel)]="prefKind" hideSingleSelectionIndicator>
+              <mat-button-toggle value="prefer">Prefers</mat-button-toggle>
+              <mat-button-toggle value="avoid">Avoid</mat-button-toggle>
+            </mat-button-toggle-group>
+            <mat-form-field>
+              <mat-label>Shift</mat-label>
+              <mat-select [(ngModel)]="prefShift">
+                <mat-option [value]="null">Any shift</mat-option>
+                @for (t of templates(); track t.id) {
+                  <mat-option [value]="t.id">{{ t.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Day</mat-label>
+              <mat-select [(ngModel)]="prefDay">
+                <mat-option [value]="null">Any day</mat-option>
+                @for (d of weekdays; track d) {
+                  <mat-option [value]="d">{{ dayNames[d] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <button mat-flat-button (click)="addPreference()" [disabled]="prefDay == null && !prefShift">
+              <mat-icon>add</mat-icon>Add
+            </button>
+          </div>
+          @if (preferences().length === 0) {
+            <p class="muted small">No preferences.</p>
+          } @else {
+            <ul class="list-plain">
+              @for (p of preferences(); track p.id) {
+                <li>
+                  <mat-icon [style.color]="p.kind === 'prefer' ? '#059669' : '#dc2626'">
+                    {{ p.kind === 'prefer' ? 'thumb_up' : 'thumb_down' }}
+                  </mat-icon>
+                  <span>{{ prefLabel(p) }}</span>
+                  <span class="spacer"></span>
+                  <button mat-icon-button (click)="store.removeRestriction(p.id)" matTooltip="Remove">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="page">
+    <div class="card empty">
+      <mat-icon>person_off</mat-icon>
+      <p>Employee not found.</p>
+      <a mat-flat-button routerLink="/employees">Back to employees</a>
+    </div>
+  </div>
+}

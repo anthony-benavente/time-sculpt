@@ -1,0 +1,36 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 16px;
+  background: var(--mat-sys-surface-container);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  overflow-x: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  font: var(--mat-sys-title-medium);
+  white-space: nowrap;
+}
+
+nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+
+  a.active {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+}
+
+@media (max-width: 720px) {
+  .label {
+    display: none;
+  }
+}
