@@ -1,0 +1,1 @@
+import{g as l$1}from"./chunk-BdRtBHoh.js";function t(r){return new Proxy({},{get(n,o){if(typeof o!=`symbol`)throw new l$1(`\`${r}.${o}\` is not available in this environment; it needs a Node.js-compatible runtime`)}})}var i=t(`child_process`);var c=t(`crypto`);var p=t(`fs`);var a=t(`os`);var l=t(`path`);var m=t(`stream`);var u=t(`util`);export{p as fs,l as path};
