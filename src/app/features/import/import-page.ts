@@ -8,7 +8,8 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { validateSchedule } from '../../core/constraint-checker';
-import { EmployeeStore, ScheduleStore, SettingsStore, ShiftTemplateStore } from '../../core/stores';
+import { resolveEmployees, resolveRestrictions } from '../../core/rule-resolution';
+import { EmployeeStore, RulesStore, ScheduleStore, SettingsStore, ShiftTemplateStore } from '../../core/stores';
 import { addDays, prettyDate } from '../../core/time';
 import { ImportOptions, planTeamsImport } from '../../import/teams-import-plan';
 import { DateOrder, parseCsv, parseTeamsWorkbook, RawSheet, TeamsWorkbook } from '../../import/teams-shifts';
@@ -80,6 +81,7 @@ import { ScheduleGrid } from '../../shared/schedule-grid';
 })
 export class ImportPage {
   private readonly employees = inject(EmployeeStore);
+  private readonly rules = inject(RulesStore);
   private readonly templateStore = inject(ShiftTemplateStore);
   private readonly schedules = inject(ScheduleStore);
   private readonly settings = inject(SettingsStore).settings;
@@ -136,7 +138,10 @@ export class ImportPage {
   protected readonly previewViolations = computed(() => {
     const p = this.plan();
     if (!p?.schedule) return [];
-    return validateSchedule(p.schedule, this.previewEmployees(), [...this.employees.restrictions(), ...p.timeOff]);
+    const rules = this.rules.ruleSet();
+    const employees = resolveEmployees(this.previewEmployees(), rules);
+    const restrictions = resolveRestrictions(employees, [...this.employees.restrictions(), ...p.timeOff], rules);
+    return validateSchedule(p.schedule, employees, restrictions, rules);
   });
   protected readonly weekTabs = computed(() => {
     const s = this.plan()?.schedule;

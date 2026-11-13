@@ -8,7 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { StorageService } from '../../core/storage.service';
-import { EmployeeStore, ScheduleStore, SettingsStore, ShiftTemplateStore } from '../../core/stores';
+import { EmployeeStore, RulesStore, ScheduleStore, SettingsStore, ShiftTemplateStore } from '../../core/stores';
 import { AI_MODELS } from '../../scheduling/ai-scheduler.service';
 import { confirm } from '../../shared/confirm-dialog';
 import { loadSampleData } from './sample-data';
@@ -104,6 +104,7 @@ export class SettingsPage {
   private readonly employees = inject(EmployeeStore);
   private readonly templates = inject(ShiftTemplateStore);
   private readonly schedules = inject(ScheduleStore);
+  private readonly rules = inject(RulesStore);
   private readonly snack = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   protected readonly models = AI_MODELS;
@@ -146,7 +147,7 @@ export class SettingsPage {
     if (hasData) {
       const ok = await confirm(this.dialog, {
         title: 'Replace current data?',
-        message: 'Loading sample data replaces your employees and shifts. Saved schedules are kept.',
+        message: 'Loading sample data replaces your employees, shifts and rules. Saved schedules are kept.',
         confirmText: 'Load sample',
         danger: true,
       });
@@ -162,5 +163,6 @@ export class SettingsPage {
     this.templates.reload();
     this.schedules.reload();
     this.store.reload();
+    this.rules.reload();
   }
 }

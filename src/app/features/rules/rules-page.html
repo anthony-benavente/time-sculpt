@@ -1,0 +1,286 @@
+<div class="page" style="max-width: 1100px">
+  <div class="page-header">
+    <h1>Rules</h1>
+    <input class="search" placeholder="Filter rules (e.g. Manager, Riley)" [value]="query()" (input)="query.set($any($event.target).value)" />
+  </div>
+  <p class="muted" style="margin-top: -8px">
+    Every rule the scheduler and break planner follow, in one place. <b>Hard</b> rules are never broken and show as errors;
+    <b>soft</b> rules are followed when possible and show as warnings.
+  </p>
+
+  <mat-tab-group [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)" animationDuration="0ms">
+    <!-- ================= BUILDER ================= -->
+    <mat-tab label="Builder">
+      <div class="tab-body">
+        <!-- Built-in -->
+        <section class="card">
+          <div class="row"><h2>Built-in rules</h2></div>
+          <ul class="core">
+            @for (c of coreRules; track c) {
+              <li><mat-icon inline>lock</mat-icon> {{ c }} <span class="muted small">(always on)</span></li>
+            }
+          </ul>
+          <table class="data builtins">
+            <tbody>
+              @for (b of builtIns; track b.id) {
+                @let s = store.ruleSet().builtIns[b.id];
+                <tr [class.inactive]="!s.enabled">
+                  <td>
+                    <b>{{ b.label }}</b>
+                    <div class="small muted">{{ b.description }}</div>
+                  </td>
+                  <td class="nowrap">
+                    <mat-button-toggle-group
+                      class="sev"
+                      [value]="s.severity"
+                      [disabled]="!s.enabled"
+                      (change)="setBuiltIn(b.id, s.enabled, $event.value)"
+                      hideSingleSelectionIndicator
+                    >
+                      <mat-button-toggle value="hard">Hard</mat-button-toggle>
+                      <mat-button-toggle value="soft">Soft</mat-button-toggle>
+                    </mat-button-toggle-group>
+                  </td>
+                  <td class="nowrap" style="width: 60px">
+                    <mat-slide-toggle [checked]="s.enabled" (change)="setBuiltIn(b.id, $event.checked, s.severity)" />
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <p class="small muted">
+            Limits like max hours come from each person (People below), or from team/role defaults (Team below).
+          </p>
+        </section>
+
+        <!-- Team -->
+        <section class="card">
+          <div class="row">
+            <h2>Team & role defaults</h2>
+            <span class="spacer"></span>
+            <button mat-stroked-button [matMenuTriggerFor]="teamMenu"><mat-icon>add</mat-icon>Add</button>
+            <mat-menu #teamMenu>
+              <button mat-menu-item (click)="add('team-limit')">Limit for everyone (e.g. max 40h/week)</button>
+              <button mat-menu-item (click)="add('role-limit')">Limit for a role (e.g. Keyholders max 1 shift/day)</button>
+              <button mat-menu-item (click)="add('team-unavailable')">Nobody works… (e.g. closed Sundays)</button>
+            </mat-menu>
+          </div>
+          <p class="small muted">Used when a person has no value of their own. A person's own setting always wins.</p>
+          @for (r of section().team; track r.id) {
+            <app-rule-card [rule]="r" [roles]="roles()" [employees]="employeeStore.employees()" (changed)="update(r.id, $event)" (removed)="remove(r.id)" />
+          } @empty {
+            <p class="empty-line">No team defaults.</p>
+          }
+        </section>
+
+        <!-- Coverage -->
+        <section class="card">
+          <div class="row">
+            <h2>Coverage</h2>
+            <span class="spacer"></span>
+            <button mat-flat-button [matMenuTriggerFor]="covMenu"><mat-icon>add</mat-icon>Add</button>
+            <mat-menu #covMenu>
+              <button mat-menu-item (click)="add('manager')">A Manager always on the floor</button>
+              <button mat-menu-item (click)="add('role-window')">Minimum of a role during certain hours</button>
+              <button mat-menu-item (click)="add('min-people')">Minimum people on the floor</button>
+            </mat-menu>
+          </div>
+          <p class="small muted">Who must be working. The scheduler picks people to meet these, and the break planner won't send the last one on break.</p>
+          @for (r of section().coverage; track r.id) {
+            <app-rule-card [rule]="r" [roles]="roles()" [employees]="employeeStore.employees()" (changed)="update(r.id, $event)" (removed)="remove(r.id)" />
+          } @empty {
+            <p class="empty-line">
+              No coverage rules yet.
+              <button mat-button (click)="add('manager')"><mat-icon>add</mat-icon>A Manager always on the floor</button>
+            </p>
+          }
+        </section>
+
+        <!-- People -->
+        <section class="card">
+          <div class="row">
+            <h2>People</h2>
+            <span class="spacer"></span>
+            <button mat-stroked-button (click)="add('never-together')"><mat-icon>add</mat-icon>Never together</button>
+          </div>
+          @for (r of section().people; track r.id) {
+            <app-rule-card [rule]="r" [roles]="roles()" [employees]="employeeStore.employees()" (changed)="update(r.id, $event)" (removed)="remove(r.id)" />
+          }
+          <div class="people">
+            @for (p of people(); track p.emp.id) {
+              <div class="person" [class.open]="expanded() === p.emp.id">
+                <button class="person-head" (click)="expanded.set(expanded() === p.emp.id ? null : p.emp.id)">
+                  <span class="color-dot" [style.background]="p.emp.color"></span>
+                  <b>{{ p.emp.name }}</b>
+                  @if (!p.emp.active) {
+                    <span class="tag warn">inactive</span>
+                  }
+                  <span class="summary small muted">{{ p.lines.length ? p.lines.join(' · ') : 'No personal rules' }}</span>
+                  <mat-icon>{{ expanded() === p.emp.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+                </button>
+                @if (expanded() === p.emp.id) {
+                  <div class="person-body">
+                    <div class="limits">
+                      @for (l of p.limits; track l.kind) {
+                        <label>
+                          <span class="small">{{ l.label }}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            [value]="l.own ?? ''"
+                            [placeholder]="inheritLabel(l)"
+                            (change)="setPersonLimit(p.emp, l.kind, $any($event.target).value)"
+                          />
+                        </label>
+                      }
+                    </div>
+                    <p class="small muted">Empty = use the team/role default shown in grey.</p>
+                    <a mat-stroked-button [routerLink]="['/employees', p.emp.id]">
+                      <mat-icon>event_busy</mat-icon>Availability, time off & preferences
+                    </a>
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="empty-line">No matching people.</p>
+            }
+          </div>
+        </section>
+
+        <!-- Breaks -->
+        <section class="card">
+          @let pol = store.ruleSet().breakPolicy;
+          <div class="row">
+            <h2>Breaks</h2>
+            <span class="spacer"></span>
+            <button mat-stroked-button [matMenuTriggerFor]="presetMenu"><mat-icon>tune</mat-icon>Presets</button>
+            <mat-menu #presetMenu>
+              @for (p of presets; track p[0]) {
+                <button mat-menu-item (click)="usePreset(p[0])">{{ p[1].label }}</button>
+              }
+            </mat-menu>
+            <button mat-stroked-button [matMenuTriggerFor]="brMenu"><mat-icon>add</mat-icon>Add</button>
+            <mat-menu #brMenu>
+              <button mat-menu-item (click)="add('max-on-break')">Max people on break at once</button>
+              <button mat-menu-item (click)="add('blackout')">No breaks during certain hours</button>
+            </mat-menu>
+          </div>
+          <div class="policy defaults">
+            <label>Default meal length <input type="number" class="n" min="5" step="5" [ngModel]="pol.defaultMealMinutes" (ngModelChange)="setDefaultLength('meal', $event)" /> min</label>
+            <label>Default rest break <input type="number" class="n" min="5" step="5" [ngModel]="pol.defaultRestMinutes" (ngModelChange)="setDefaultLength('rest', $event)" /> min</label>
+          </div>
+          <div class="tiers">
+            @for (t of pol.tiers; track $index; let i = $index) {
+              <div class="tier">
+                <span>Shifts</span>
+                <input type="number" min="0" step="0.5" class="n" [ngModel]="t.minShiftHours" (ngModelChange)="setTier(i, { minShiftHours: num($event) })" />
+                <span>h or longer get</span>
+                @for (b of t.breaks; track $index; let k = $index) {
+                  <span class="brk">
+                    <select [ngModel]="b.kind" (ngModelChange)="setTierBreak(i, k, { kind: $event, minutes: $event === 'meal' ? pol.defaultMealMinutes : pol.defaultRestMinutes })">
+                      <option value="rest">rest</option>
+                      <option value="meal">meal</option>
+                    </select>
+                    <input type="number" min="5" step="5" class="n" [ngModel]="b.minutes" (ngModelChange)="setTierBreak(i, k, { minutes: num($event, 5) })" />m
+                    <button class="x" (click)="removeTierBreak(i, k)" aria-label="Remove break">×</button>
+                  </span>
+                }
+                <button mat-button (click)="addTierBreak(i)"><mat-icon>add</mat-icon></button>
+                <span class="spacer"></span>
+                <button mat-icon-button (click)="removeTier(i)" matTooltip="Remove this rule"><mat-icon>delete</mat-icon></button>
+              </div>
+            }
+            <button mat-button (click)="addTier()"><mat-icon>add</mat-icon>Add a shift length</button>
+          </div>
+          <div class="policy">
+            <label>No breaks in the first <input type="number" class="n" min="0" step="15" [ngModel]="pol.noBreakFirstMinutes" (ngModelChange)="setPolicy({ noBreakFirstMinutes: num($event) })" /> min</label>
+            <label>…or the last <input type="number" class="n" min="0" step="15" [ngModel]="pol.noBreakLastMinutes" (ngModelChange)="setPolicy({ noBreakLastMinutes: num($event) })" /> min of a shift</label>
+            <label>At least <input type="number" class="n" min="0" step="15" [ngModel]="pol.minGapMinutes" (ngModelChange)="setPolicy({ minGapMinutes: num($event) })" /> min between breaks</label>
+            <label>Break times every <input type="number" class="n" min="5" step="5" [ngModel]="pol.stepMinutes" (ngModelChange)="setPolicy({ stepMinutes: num($event, 5) })" /> min</label>
+          </div>
+          @for (r of section().breaks; track r.id) {
+            <app-rule-card [rule]="r" [roles]="roles()" [employees]="employeeStore.employees()" (changed)="update(r.id, $event)" (removed)="remove(r.id)" />
+          }
+        </section>
+      </div>
+    </mat-tab>
+
+    <!-- ================= TEXT ================= -->
+    <mat-tab label="Edit as text">
+      <div class="tab-body text-tab">
+        <div class="editor-col">
+          <div class="row" style="margin-bottom: 8px">
+            <mat-checkbox [checked]="includePast()" (change)="includePast.set($event.checked)" [disabled]="dirty()">Show past time off</mat-checkbox>
+            <mat-checkbox [checked]="replaceAll()" (change)="replaceAll.set($event.checked)" matTooltip="People not mentioned in the text lose their personal rules">
+              Replace all people
+            </mat-checkbox>
+            <span class="spacer"></span>
+            <button mat-button (click)="revert()" [disabled]="!dirty()">Revert</button>
+            <button mat-flat-button (click)="applyText()" [disabled]="!dirty() || parsed().errors.length > 0">
+              <mat-icon>check</mat-icon>Apply
+            </button>
+          </div>
+          <div class="editor">
+            <div class="gutter" aria-hidden="true">
+              @for (n of lineNumbers(); track n) {
+                <div [class.err]="errorLines().has(n)">{{ n }}</div>
+              }
+            </div>
+            <textarea
+              #ta
+              spellcheck="false"
+              [value]="text()"
+              (input)="onText($any($event.target).value)"
+              (scroll)="$any(ta.previousElementSibling).scrollTop = ta.scrollTop"
+            ></textarea>
+          </div>
+          @if (parsed().errors.length) {
+            <ul class="issues errors">
+              @for (e of parsed().errors; track $index) {
+                <li (click)="jumpToLine(ta, e.line)"><b>Line {{ e.line }}:</b> {{ e.message }}</li>
+              }
+            </ul>
+          }
+          @if (parsed().warnings.length) {
+            <ul class="issues warnings">
+              @for (w of parsed().warnings; track $index) {
+                <li (click)="jumpToLine(ta, w.line)"><b>Line {{ w.line }}:</b> {{ w.message }}</li>
+              }
+            </ul>
+          }
+        </div>
+        <aside class="cheats card">
+          <h2>How to write rules</h2>
+          <p class="small muted">One rule per line. Add <code>(soft)</code> to make it a preference. Start a line with <code># off:</code> to turn it off.</p>
+          <h3>Coverage</h3>
+          <code>at least 1 Manager on the floor</code>
+          <code>at least 2 Cashier on the floor Mon-Fri 11:00-14:00</code>
+          <code>at least 3 people on the floor weekends (soft)</code>
+          <code>at least 1 Keyholder on the floor (schedule only)</code>
+          <h3>Team & roles</h3>
+          <code>everyone: max 40 hours per week</code>
+          <code>everyone: unavailable Sun</code>
+          <code>Keyholder: max 1 shift per day</code>
+          <code>Minor: unavailable every day after 22:00</code>
+          <h3>People</h3>
+          <code>Riley Novak: max 16 hours per week</code>
+          <code>Riley Novak: unavailable Mon-Fri until 16:00</code>
+          <code>Riley Novak: time off Nov 18 to Nov 20 (Vacation)</code>
+          <code>Riley Novak: prefers Close on Fri</code>
+          <code>Riley Novak: avoids Sat</code>
+          <code>never together: Sam Patel, Riley Novak</code>
+          <h3>Breaks</h3>
+          <code>breaks for shifts 6h+: rest 15, meal 30</code>
+          <code>no breaks in first 60 min</code>
+          <code>at least 60 min between breaks</code>
+          <code>at most 2 on break (soft)</code>
+          <code>no breaks 12:00-13:00 Sat-Sun</code>
+          <h3>Built-in</h3>
+          <code>max days in a row: on (soft)</code>
+          <code>fill shifts to headcount: off</code>
+          <p class="small muted">Days: <code>Mon</code>, <code>Mon-Fri</code>, <code>weekends</code>, <code>every day</code>. Times: <code>7:00</code>, <code>7a</code>, <code>7:30pm</code>.</p>
+        </aside>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

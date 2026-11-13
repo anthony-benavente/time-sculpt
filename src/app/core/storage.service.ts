@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 const PREFIX = 'scheduler.v1.';
 export const EXPORT_VERSION = 1;
 
-export const STORAGE_KEYS = ['employees', 'restrictions', 'shiftTemplates', 'schedules', 'settings'] as const;
+export const STORAGE_KEYS = ['employees', 'restrictions', 'shiftTemplates', 'schedules', 'settings', 'rules'] as const;
 export type StorageKey = (typeof STORAGE_KEYS)[number];
 
 export interface ExportBundle {
@@ -65,6 +65,9 @@ export class StorageService {
         // Keep the existing API key; it is never exported.
         const current = this.read<Record<string, unknown>>('settings', {});
         this.write(key, { ...(value as object), anthropicApiKey: current['anthropicApiKey'] ?? '' });
+      } else if (key === 'rules') {
+        if (!value || typeof value !== 'object') throw new Error('Invalid data for "rules".');
+        this.write(key, value);
       } else {
         if (!Array.isArray(value)) throw new Error(`Invalid data for "${key}".`);
         this.write(key, value);

@@ -11,7 +11,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { validateSchedule } from '../../core/constraint-checker';
 import { IsoDate, ShiftSlot } from '../../core/models';
-import { EmployeeStore, ScheduleStore, ShiftTemplateStore } from '../../core/stores';
+import { EffectiveRules, EmployeeStore, ScheduleStore, ShiftTemplateStore } from '../../core/stores';
 import { addDays, daysBetween, prettyDate, prettyRange, today } from '../../core/time';
 import { generateSchedule } from '../../scheduling/greedy-scheduler';
 import { CellEvent, ChipEvent, MoveEvent, ScheduleGrid } from '../../shared/schedule-grid';
@@ -70,6 +70,7 @@ export class ScheduleViewPage {
 
   private readonly store = inject(ScheduleStore);
   protected readonly employees = inject(EmployeeStore);
+  protected readonly eff = inject(EffectiveRules);
   protected readonly templates = inject(ShiftTemplateStore).templates;
   private readonly dialog = inject(MatDialog);
   private readonly snack = inject(MatSnackBar);
@@ -97,7 +98,7 @@ export class ScheduleViewPage {
 
   protected readonly violations = computed(() => {
     const s = this.schedule();
-    return s ? validateSchedule(s, this.employees.employees(), this.employees.restrictions()) : [];
+    return s ? validateSchedule(s, this.eff.employees(), this.eff.restrictions(), this.eff.ruleSet()) : [];
   });
   protected readonly errors = computed(() => this.violations().filter((v) => v.severity === 'error'));
   protected readonly warnings = computed(() => this.violations().filter((v) => v.severity === 'warning'));
@@ -150,8 +151,9 @@ export class ScheduleViewPage {
       slot,
       allSlots: s.slots,
       startDate: s.startDate,
-      employees: this.employees.employees(),
-      restrictions: this.employees.restrictions(),
+      employees: this.eff.employees(),
+      restrictions: this.eff.restrictions(),
+      rules: this.eff.ruleSet(),
     };
     const result = await firstValueFrom(this.dialog.open(SlotDialog, { data, width: '520px' }).afterClosed());
     if (result && JSON.stringify(result) !== JSON.stringify(slot.assignedEmployeeIds)) {
@@ -204,8 +206,9 @@ export class ScheduleViewPage {
       startDate: s.startDate,
       weeks: s.weeks,
       slots: s.slots,
-      employees: this.employees.employees(),
-      restrictions: this.employees.restrictions(),
+      employees: this.eff.employees(),
+      restrictions: this.eff.restrictions(),
+      rules: this.eff.ruleSet(),
       iterations: 30,
     });
     // Only take new assignments for slots in scope.

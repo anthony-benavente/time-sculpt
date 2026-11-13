@@ -1,6 +1,38 @@
 import { z } from 'zod';
-import { Employee, IsoDate, Restriction, ShiftSlot, ShiftTemplate, WEEKDAY_NAMES } from '../core/models';
+import { Employee, IsoDate, Restriction, RuleSet, ShiftSlot, ShiftTemplate, WEEKDAY_NAMES } from '../core/models';
+import { BUILT_INS } from '../core/rules-defaults';
+import { formatRule } from '../core/rules-text';
 import { shiftHours, weekdayOf } from '../core/time';
+
+/**
+ * Business rules for the prompt: custom coverage / never-together rules, and any built-in rule
+ * that was switched off or made soft. Employee limits are already in the employee rows.
+ */
+export function rulesSection(rules: RuleSet | null | undefined, employees: readonly Employee[]): string {
+  if (!rules) return '';
+  const names = new Map(employees.map((e) => [e.id, e.name]));
+  const hard: string[] = [];
+  const soft: string[] = [];
+  for (const r of rules.rules) {
+    if (!r.enabled || (r.type !== 'coverage' && r.type !== 'never-together')) continue;
+    if (r.type === 'coverage' && !r.appliesTo.includes('schedule')) continue;
+    (r.severity === 'hard' ? hard : soft).push(formatRule(r, names).replace(/\s*\((?:soft|schedule only)(?:, )?\)\s*$/, ''));
+  }
+  for (const b of BUILT_INS) {
+    const s = rules.builtIns[b.id];
+    if (!s || (s.enabled && s.severity === b.default.severity)) continue;
+    if (!s.enabled) soft.push(`Ignore the "${b.label}" rule (turned off by the manager).`);
+    else if (s.severity === 'soft') soft.push(`"${b.label}" is a preference, not a hard rule.`);
+    else hard.push(`"${b.label}" is a hard rule.`);
+  }
+  if (!hard.length && !soft.length) return '';
+  return [
+    '',
+    'Business rules ("on the floor" = working a shift at that time; times are 24h):',
+    ...hard.map((x) => `- HARD: ${x}`),
+    ...soft.map((x) => `- Preference: ${x}`),
+  ].join('\n');
+}
 
 export const AiScheduleSchema = z.object({
   assignments: z.array(
@@ -67,6 +99,7 @@ export function buildAiPrompt(args: {
   restrictions: readonly Restriction[];
   templates: readonly ShiftTemplate[];
   extraInstructions?: string;
+  rules?: RuleSet | null;
 }): AiPrompt {
   const tmplById = new Map(args.templates.map((t) => [t.id, t]));
   const employeeKeys = new Map<string, Employee>();
@@ -120,6 +153,7 @@ export function buildAiPrompt(args: {
     '',
     'Slots to fill (keep any alreadyAssigned employees and include them in your answer):',
     JSON.stringify(slots),
+    rulesSection(args.rules, args.employees),
     args.extraInstructions?.trim() ? `\nAdditional instructions from the manager:\n${args.extraInstructions.trim()}` : '',
   ].join('\n');
 

@@ -4,7 +4,7 @@
       <thead>
         <tr>
           <th class="name-col">Employee</th>
-          @for (d of dates(); track d) {
+          @for (d of dates(); track $index) {
             <th>
               <div class="day">{{ weekdayName(d) }}</div>
               <div class="date">{{ prettyDate(d) }}</div>
@@ -20,7 +20,7 @@
               <span class="color-dot" [style.background]="e.color"></span>
               <span class="emp-name">{{ e.name }}</span>
             </td>
-            @for (d of dates(); track d) {
+            @for (d of dates(); track $index) {
               <td
                 class="cell"
                 (click)="editable() && cellClick.emit({ employeeId: e.id, date: d })"
@@ -51,7 +51,7 @@
       <tfoot>
         <tr class="open-row">
           <td class="name-col open-label">Open shifts</td>
-          @for (d of dates(); track d) {
+          @for (d of dates(); track $index) {
             <td>
               @for (s of openByDate().get(d) ?? []; track s.id) {
                 <div
@@ -77,7 +77,7 @@
       <thead>
         <tr>
           <th class="name-col">Shift</th>
-          @for (d of dates(); track d) {
+          @for (d of dates(); track $index) {
             <th>
               <div class="day">{{ weekdayName(d) }}</div>
               <div class="date">{{ prettyDate(d) }}</div>
@@ -92,12 +92,12 @@
               <span class="color-dot" [style.background]="row.color"></span>
               <span class="emp-name">{{ row.name }}</span>
             </td>
-            @for (d of dates(); track d) {
+            @for (d of dates(); track $index) {
               @let s = row.byDate.get(d);
               <td class="cell slot-cell" [class.na]="!s" (click)="s && editable() && slotClick.emit(s)">
                 @if (s) {
                   <div class="slot-time muted small">{{ prettyRange(s.start, s.end) }}</div>
-                  @for (id of s.assignedEmployeeIds; track id) {
+                  @for (id of s.assignedEmployeeIds; track $index) {
                     @let emp = empById().get(id);
                     <div
                       class="person"
@@ -108,7 +108,7 @@
                       {{ emp?.name ?? 'Unknown' }}
                     </div>
                   }
-                  @for (m of missing(s); track m) {
+                  @for (m of missing(s); track $index) {
                     <div class="person empty-pos">Open</div>
                   }
                 }

@@ -157,7 +157,7 @@ export class EmployeesPage {
         color: this.store.nextColor(),
         roles: [],
         active: true,
-        maxShiftsPerDay: 1,
+        maxShiftsPerDay: null,
         minHoursPerWeek: null,
         maxHoursPerWeek: null,
         maxConsecutiveDays: null,

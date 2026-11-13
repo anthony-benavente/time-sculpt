@@ -1,0 +1,219 @@
+.search {
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  min-width: 260px;
+  background: var(--mat-sys-surface);
+  color: inherit;
+}
+.tab-body {
+  padding-top: 16px;
+}
+.card .row h2 {
+  margin: 0;
+}
+.core {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px;
+  columns: 2;
+  font-size: 13px;
+  li {
+    padding: 2px 0;
+  }
+}
+.nowrap {
+  white-space: nowrap;
+  width: 1%;
+}
+.sev {
+  --mat-standard-button-toggle-height: 26px;
+  font-size: 12px;
+}
+.empty-line {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.people {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.person + .person {
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+.person-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  background: var(--mat-sys-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .summary {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+.person.open .person-head {
+  background: var(--mat-sys-surface-container-low);
+}
+.person-body {
+  padding: 8px 12px 12px 32px;
+}
+.limits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  input {
+    width: 150px;
+    font: inherit;
+    padding: 4px 8px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 6px;
+    background: var(--mat-sys-surface);
+    color: inherit;
+  }
+}
+input.n,
+select {
+  font: inherit;
+  padding: 3px 6px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 6px;
+  background: var(--mat-sys-surface);
+  color: inherit;
+}
+input.n {
+  width: 56px;
+}
+.tiers {
+  margin: 8px 0;
+}
+.tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--mat-sys-outline-variant);
+}
+.brk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 6px;
+  border-radius: 8px;
+  background: var(--mat-sys-secondary-container);
+  .x {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    color: inherit;
+  }
+}
+.policy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 8px 0 14px;
+  font-size: 14px;
+}
+
+/* text tab */
+.text-tab {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .text-tab {
+    grid-template-columns: 1fr;
+  }
+}
+.editor {
+  display: flex;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 10px;
+  overflow: hidden;
+  height: 65vh;
+  background: var(--mat-sys-surface);
+  font: 13px/20px ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+.gutter {
+  overflow: hidden;
+  padding: 8px 6px;
+  text-align: right;
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container);
+  min-width: 34px;
+  user-select: none;
+  div.err {
+    background: var(--mat-sys-error);
+    color: var(--mat-sys-on-error);
+    border-radius: 3px;
+  }
+}
+textarea {
+  flex: 1;
+  border: 0;
+  resize: none;
+  padding: 8px 10px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  white-space: pre;
+  overflow: auto;
+  outline: none;
+}
+.issues {
+  list-style: none;
+  padding: 8px 12px;
+  margin: 8px 0 0;
+  border-radius: 8px;
+  font-size: 13px;
+  li {
+    cursor: pointer;
+    padding: 2px 0;
+  }
+  &.errors {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+  &.warnings {
+    background: #fffbeb;
+    color: #92400e;
+  }
+}
+.cheats {
+  h3 {
+    font: var(--mat-sys-title-small);
+    margin: 12px 0 4px;
+  }
+  code {
+    display: block;
+    font-size: 12px;
+    padding: 2px 0;
+    color: var(--mat-sys-on-surface);
+  }
+  p code {
+    display: inline;
+  }
+}

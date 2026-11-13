@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AssignmentState, canAssign, groupRestrictions, round1 } from '../core/constraint-checker';
-import { Employee, IsoDate, Restriction, ShiftSlot, WEEKDAY_FULL_NAMES } from '../core/models';
+import { Employee, IsoDate, Restriction, RuleSet, ShiftSlot, WEEKDAY_FULL_NAMES } from '../core/models';
 import { prettyDate, prettyRange, weekdayOf } from '../core/time';
 
 export interface SlotDialogData {
@@ -13,6 +13,7 @@ export interface SlotDialogData {
   startDate: IsoDate;
   employees: readonly Employee[];
   restrictions: readonly Restriction[];
+  rules?: RuleSet | null;
 }
 
 /** Pick who works one shift. Returns the new list of employee ids, or undefined if cancelled. */
@@ -56,8 +57,8 @@ export interface SlotDialogData {
             <span class="color-dot" [style.background]="c.emp.color"></span>
             <span>{{ c.emp.name }}</span>
             <span class="muted small">{{ c.hours }}h this week</span>
-            @if (!c.ok) {
-              <span class="tag warn" [matTooltip]="c.reasons.join('\n')">{{ c.reasons[0] }}{{ c.reasons.length > 1 ? ' +' + (c.reasons.length - 1) : '' }}</span>
+            @if (c.reasons.length) {
+              <span class="tag" [class.warn]="!c.ok" [matTooltip]="c.reasons.join('\n')">{{ c.reasons[0] }}{{ c.reasons.length > 1 ? ' +' + (c.reasons.length - 1) : '' }}</span>
             }
             <span class="spacer"></span>
             <button mat-stroked-button (click)="add(c.emp.id)" [matTooltip]="c.ok ? '' : 'Add anyway (breaks a rule)'">
@@ -98,6 +99,7 @@ export class SlotDialog {
   protected readonly dayName = WEEKDAY_FULL_NAMES[weekdayOf(this.data.slot.date)];
   protected readonly empById = new Map(this.data.employees.map((e) => [e.id, e]));
   private readonly restr = groupRestrictions(this.data.restrictions);
+  private readonly names = new Map(this.data.employees.map((e) => [e.id, e.name]));
 
   protected readonly assigned = signal<string[]>([...this.data.slot.assignedEmployeeIds]);
 
@@ -110,8 +112,9 @@ export class SlotDialog {
     return this.data.employees
       .filter((e) => e.active && !assigned.includes(e.id))
       .map((emp) => {
-        const r = canAssign(emp, slot, this.restr.get(emp.id) ?? [], state);
-        return { emp, ok: r.ok, reasons: r.reasons, hours: round1(state.hoursInWeek(emp.id, week)) };
+        const r = canAssign(emp, slot, this.restr.get(emp.id) ?? [], state, this.data.rules, this.names);
+        const reasons = [...r.reasons, ...r.soft.map((x) => `${x} (soft rule)`)];
+        return { emp, ok: r.ok, reasons, hours: round1(state.hoursInWeek(emp.id, week)) };
       })
       .sort((a, b) => Number(b.ok) - Number(a.ok) || a.hours - b.hours || a.emp.name.localeCompare(b.emp.name));
   });

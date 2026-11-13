@@ -1,0 +1,138 @@
+@if (schedule(); as s) {
+  <div class="page">
+    <div class="page-header">
+      <a mat-icon-button [routerLink]="['/schedules', s.id]" matTooltip="Back to schedule"><mat-icon>arrow_back</mat-icon></a>
+      <h1>Breaks <span class="muted" style="font-size: 16px">— {{ s.name }}</span></h1>
+      <button mat-stroked-button (click)="undo()" [disabled]="!canUndo()"><mat-icon>undo</mat-icon>Undo</button>
+      <button mat-flat-button (click)="planDay()" [disabled]="!shifts().length"><mat-icon>auto_fix_high</mat-icon>Plan this day</button>
+      <button mat-icon-button [matMenuTriggerFor]="more" matTooltip="More"><mat-icon>more_vert</mat-icon></button>
+      <mat-menu #more>
+        <button mat-menu-item (click)="planAll()"><mat-icon>date_range</mat-icon>Plan every day of this schedule</button>
+        <button mat-menu-item (click)="clearDay()"><mat-icon>clear_all</mat-icon>Clear this day</button>
+        <a mat-menu-item routerLink="/rules"><mat-icon>rule</mat-icon>Break rules…</a>
+      </mat-menu>
+      <a mat-stroked-button [routerLink]="['/schedules', s.id, 'breaks', 'print']" [queryParams]="{ date: date() }">
+        <mat-icon>print</mat-icon>Print
+      </a>
+    </div>
+
+    @if (weekTabs().length > 1) {
+      <mat-button-toggle-group [value]="week()" (change)="pickWeek($event.value)" hideSingleSelectionIndicator style="margin-bottom: 10px">
+        @for (w of weekTabs(); track w.i) {
+          <mat-button-toggle [value]="w.i">Week of {{ w.label }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    }
+    <div class="days">
+      @for (d of days(); track $index) {
+        <button class="day" [class.on]="d.date === date()" [disabled]="!d.working" (click)="pickDay(d.date)">
+          <b>{{ d.name }}</b>
+          @if (d.planned) {
+            <span class="dot" title="Breaks planned"></span>
+          }
+          <small>{{ d.label }} · {{ d.working }}</small>
+        </button>
+      }
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="card">
+          @if (!shifts().length) {
+            <p class="muted">Nobody is scheduled on this day.</p>
+          } @else {
+            <app-break-timeline
+              [date]="date()"
+              [shifts]="shifts()"
+              [slots]="s.slots"
+              [employees]="eff.employees()"
+              [breaks]="s.breaks"
+              [colors]="colors()"
+              [lowTicks]="lowTicks()"
+            />
+          }
+        </div>
+
+        @if (shifts().length) {
+          <div class="card table-scroll" style="padding: 0">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Shift</th>
+                  <th>Breaks</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of rows(); track r.key) {
+                  <tr>
+                    <td><b>{{ r.name }}</b></td>
+                    <td class="small">{{ prettyRange(r.ds.slot.start, r.ds.slot.end) }} <span class="muted">{{ r.ds.slot.name }} · {{ r.hours }}h</span></td>
+                    <td>
+                      @for (b of r.breaks; track $index; let i = $index) {
+                        <span class="brk" [class.meal]="b.kind === 'meal'">
+                          <span class="small">{{ b.kind === 'meal' ? 'Meal' : 'Break' }}</span>
+                          <input type="time" [value]="b.start" (change)="setStart(r, i, $any($event.target).value)" aria-label="Start" />
+                          <input type="number" min="5" step="5" style="width: 48px" [value]="b.minutes" (change)="setMinutes(r, i, +$any($event.target).value)" aria-label="Minutes" />m
+                          <button class="x" (click)="removeBreak(r, i)" aria-label="Remove">×</button>
+                        </span>
+                      } @empty {
+                        @if (r.required.length) {
+                          <span class="small muted">Needs {{ r.required.length }} — click "Plan this day"</span>
+                        } @else {
+                          <span class="small muted">No breaks needed</span>
+                        }
+                      }
+                    </td>
+                    <td style="white-space: nowrap; text-align: right">
+                      <button mat-icon-button [matMenuTriggerFor]="addMenu" matTooltip="Add a break"><mat-icon>add</mat-icon></button>
+                      <mat-menu #addMenu>
+                        <button mat-menu-item (click)="addBreak(r, 'rest')">Rest break ({{ policy().defaultRestMinutes }}m)</button>
+                        <button mat-menu-item (click)="addBreak(r, 'meal')">Meal ({{ policy().defaultMealMinutes }}m)</button>
+                      </mat-menu>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div class="card issues">
+        <h2>
+          Checks
+          @if (shifts().length && !errors().length && !warnings().length) {
+            <span class="tag ok">All good</span>
+          }
+        </h2>
+        @if (errors().length) {
+          <ul class="list-plain small">
+            @for (v of errors(); track $index) {
+              <li><mat-icon inline style="color: var(--mat-sys-error)">block</mat-icon>{{ v.message }}</li>
+            }
+          </ul>
+        }
+        @if (warnings().length) {
+          <ul class="list-plain small">
+            @for (v of warnings(); track $index) {
+              <li><mat-icon inline style="color: #d97706">info</mat-icon>{{ v.message }}</li>
+            }
+          </ul>
+        }
+        <p class="small muted" style="margin-top: 12px">
+          Break lengths and coverage come from <a routerLink="/rules">Rules</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="page">
+    <div class="card empty">
+      <mat-icon>event_busy</mat-icon>
+      <p>Schedule not found.</p>
+      <a mat-flat-button routerLink="/schedules">All schedules</a>
+    </div>
+  </div>
+}

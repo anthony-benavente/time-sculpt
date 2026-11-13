@@ -31,6 +31,7 @@ export class App {
     { path: '/generate', label: 'Generate', icon: 'auto_awesome' },
     { path: '/employees', label: 'Employees', icon: 'group' },
     { path: '/shifts', label: 'Shifts', icon: 'schedule' },
+    { path: '/rules', label: 'Rules', icon: 'rule' },
     { path: '/settings', label: 'Settings', icon: 'settings' },
   ];
 }

@@ -63,6 +63,7 @@ import { confirm } from '../../shared/confirm-dialog';
                   <td class="muted small">{{ s.updatedAt | date: 'short' }}</td>
                   <td style="white-space: nowrap; text-align: right">
                     <a mat-icon-button [routerLink]="['/schedules', s.id]" matTooltip="Open"><mat-icon>edit_calendar</mat-icon></a>
+                    <a mat-icon-button [routerLink]="['/schedules', s.id, 'breaks']" matTooltip="Breaks"><mat-icon>coffee</mat-icon></a>
                     <a mat-icon-button [routerLink]="['/schedules', s.id, 'print']" matTooltip="Print"><mat-icon>print</mat-icon></a>
                     <button mat-icon-button (click)="store.duplicate(s.id)" matTooltip="Duplicate"><mat-icon>content_copy</mat-icon></button>
                     <button mat-icon-button (click)="remove(s)" matTooltip="Delete"><mat-icon>delete</mat-icon></button>

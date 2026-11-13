@@ -45,7 +45,7 @@
             <thead>
               <tr>
                 <th class="n">Employee</th>
-                @for (d of w.dates; track d) {
+                @for (d of w.dates; track $index) {
                   <th>{{ weekday(d) }}<br /><span class="d">{{ prettyDate(d) }}</span></th>
                 }
                 <th class="h">Hrs</th>
@@ -86,7 +86,7 @@
             <thead>
               <tr>
                 <th class="n">Shift</th>
-                @for (d of w.dates; track d) {
+                @for (d of w.dates; track $index) {
                   <th>{{ weekday(d) }}<br /><span class="d">{{ prettyDate(d) }}</span></th>
                 }
               </tr>
@@ -100,7 +100,7 @@
                   @for (slot of row.cells; track $index) {
                     <td [class.off]="!slot">
                       @if (slot) {
-                        @for (id of slot.assignedEmployeeIds; track id) {
+                        @for (id of slot.assignedEmployeeIds; track $index) {
                           <div class="p">{{ empName(id) }}</div>
                         }
                         @for (m of blanks(slot); track $index) {

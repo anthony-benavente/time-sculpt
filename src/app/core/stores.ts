@@ -1,14 +1,21 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import {
   AppSettings,
+  BreakPolicy,
+  BuiltInId,
+  BuiltInSetting,
   DEFAULT_SETTINGS,
   Employee,
   newId,
   PALETTE,
   Restriction,
+  Rule,
+  RuleSet,
   Schedule,
   ShiftTemplate,
 } from './models';
+import { resolveEmployees, resolveRestrictions } from './rule-resolution';
+import { normalizeRuleSet } from './rules-defaults';
 import { StorageService } from './storage.service';
 
 @Injectable({ providedIn: 'root' })
@@ -120,6 +127,13 @@ export class EmployeeStore {
     this.persist();
   }
 
+  /** Apply rule-text edits: patch employees and replace the whole restriction list in one save. */
+  applyPeople(patches: Map<string, Partial<Employee>>, restrictions: Restriction[]): void {
+    this._employees.update((list) => list.map((e) => (patches.has(e.id) ? { ...e, ...patches.get(e.id), id: e.id } : e)));
+    this._restrictions.set(restrictions);
+    this.persist();
+  }
+
   /** Replace all weekly-unavailable restrictions for one employee (used by the availability grid). */
   setWeeklyUnavailable(employeeId: string, items: Restriction[]): void {
     this._restrictions.update((list) => [
@@ -181,6 +195,72 @@ export class ShiftTemplateStore {
   private persist(): void {
     this.storage.write('shiftTemplates', this._templates());
   }
+}
+
+@Injectable({ providedIn: 'root' })
+export class RulesStore {
+  private readonly storage = inject(StorageService);
+  private readonly _ruleSet = signal<RuleSet>(normalizeRuleSet(this.storage.read<Partial<RuleSet> | null>('rules', null)));
+  readonly ruleSet = this._ruleSet.asReadonly();
+  readonly rules = computed(() => this._ruleSet().rules);
+
+  set(ruleSet: RuleSet): void {
+    this._ruleSet.set(ruleSet);
+    this.persist();
+  }
+
+  add(rule: Rule): void {
+    this._ruleSet.update((rs) => ({ ...rs, rules: [...rs.rules, rule] }));
+    this.persist();
+  }
+
+  update(id: string, patch: Partial<Rule>): void {
+    this._ruleSet.update((rs) => ({
+      ...rs,
+      rules: rs.rules.map((r) => (r.id === id ? ({ ...r, ...patch, id } as Rule) : r)),
+    }));
+    this.persist();
+  }
+
+  remove(id: string): Rule | undefined {
+    const rule = this._ruleSet().rules.find((r) => r.id === id);
+    this._ruleSet.update((rs) => ({ ...rs, rules: rs.rules.filter((r) => r.id !== id) }));
+    this.persist();
+    return rule;
+  }
+
+  setBuiltIn(id: BuiltInId, setting: BuiltInSetting): void {
+    this._ruleSet.update((rs) => ({ ...rs, builtIns: { ...rs.builtIns, [id]: setting } }));
+    this.persist();
+  }
+
+  setBreakPolicy(policy: BreakPolicy): void {
+    this._ruleSet.update((rs) => ({ ...rs, breakPolicy: policy }));
+    this.persist();
+  }
+
+  reload(): void {
+    this._ruleSet.set(normalizeRuleSet(this.storage.read<Partial<RuleSet> | null>('rules', null)));
+  }
+
+  private persist(): void {
+    this.storage.write('rules', this._ruleSet());
+  }
+}
+
+/**
+ * Employees and restrictions with team/role rules applied. Pass these (not the raw store values)
+ * to the scheduler, validator, AI prompt and break planner.
+ */
+@Injectable({ providedIn: 'root' })
+export class EffectiveRules {
+  private readonly employeeStore = inject(EmployeeStore);
+  private readonly rulesStore = inject(RulesStore);
+  readonly ruleSet = this.rulesStore.ruleSet;
+  readonly employees = computed(() => resolveEmployees(this.employeeStore.employees(), this.rulesStore.ruleSet()));
+  readonly restrictions = computed(() =>
+    resolveRestrictions(this.employees(), this.employeeStore.restrictions(), this.rulesStore.ruleSet()),
+  );
 }
 
 @Injectable({ providedIn: 'root' })

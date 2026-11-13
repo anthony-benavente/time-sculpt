@@ -1,5 +1,5 @@
 import { AssignmentState, validateSchedule } from '../core/constraint-checker';
-import { Employee, IsoDate, Restriction, ShiftSlot } from '../core/models';
+import { Employee, IsoDate, Restriction, RuleSet, ShiftSlot } from '../core/models';
 import { generateSchedule, GenerateResult } from './greedy-scheduler';
 
 /**
@@ -13,6 +13,7 @@ export function repairSchedule(args: {
   employees: readonly Employee[];
   restrictions: readonly Restriction[];
   iterations?: number;
+  rules?: RuleSet | null;
 }): GenerateResult & { removed: number } {
   let slots = args.slots.map((s) => ({ ...s, assignedEmployeeIds: [...new Set(s.assignedEmployeeIds)] }));
   const known = new Set(args.employees.map((e) => e.id));
@@ -27,7 +28,7 @@ export function repairSchedule(args: {
 
   // Repeatedly drop flagged assignments until no hard errors remain (each pass removes at least one).
   for (let pass = 0; pass < 50; pass++) {
-    const errors = validateSchedule({ ...args, slots }, args.employees, args.restrictions).filter(
+    const errors = validateSchedule({ ...args, slots }, args.employees, args.restrictions, args.rules).filter(
       (v) => v.severity === 'error' && v.employeeId,
     );
     if (errors.length === 0) break;
@@ -69,6 +70,7 @@ export function repairSchedule(args: {
     employees: args.employees,
     restrictions: args.restrictions,
     iterations: args.iterations ?? 30,
+    rules: args.rules,
   });
   return { ...result, removed };
 }

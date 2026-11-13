@@ -21,6 +21,7 @@
       <mat-menu #moreMenu>
         <button mat-menu-item (click)="clearWeek()"><mat-icon>clear_all</mat-icon>Clear this week</button>
       </mat-menu>
+      <a mat-stroked-button [routerLink]="['/schedules', s.id, 'breaks']"><mat-icon>coffee</mat-icon>Breaks</a>
       <a mat-flat-button [routerLink]="['/schedules', s.id, 'print']"><mat-icon>print</mat-icon>Print</a>
     </div>
 

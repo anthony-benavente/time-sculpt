@@ -16,7 +16,7 @@ export interface Employee {
   minHoursPerWeek?: number | null;
   maxHoursPerWeek?: number | null;
   /** Max shifts on a single calendar day. Defaults to 1. */
-  maxShiftsPerDay: number;
+  maxShiftsPerDay?: number | null;
   maxConsecutiveDays?: number | null;
   /** Minimum hours of rest between the end of one shift and the start of the next. */
   minRestHours?: number | null;
@@ -94,6 +94,126 @@ export interface Schedule {
   source: ScheduleSource;
   notes?: string;
   slots: ShiftSlot[];
+  /** Planned breaks keyed by `${slotId}|${employeeId}`. */
+  breaks?: Record<string, PlannedBreak[]>;
+}
+
+// ---------- Breaks ----------
+
+export type BreakKind = 'rest' | 'meal';
+
+export interface PlannedBreak {
+  kind: BreakKind;
+  start: HHmm;
+  minutes: number;
+}
+
+export interface BreakTier {
+  minShiftHours: number;
+  breaks: { kind: BreakKind; minutes: number }[];
+}
+
+export interface BreakPolicy {
+  /** The highest tier whose minShiftHours <= shift length applies. */
+  tiers: BreakTier[];
+  /** Length used for new meal breaks (tiers, presets, "+ Meal"). */
+  defaultMealMinutes: number;
+  /** Length used for new rest breaks. */
+  defaultRestMinutes: number;
+  noBreakFirstMinutes: number;
+  noBreakLastMinutes: number;
+  minGapMinutes: number;
+  stepMinutes: number;
+}
+
+// ---------- Rules ----------
+
+export type Severity = 'hard' | 'soft';
+export type RuleTarget = 'schedule' | 'breaks';
+
+export interface RuleBase {
+  id: string;
+  enabled: boolean;
+  severity: Severity;
+}
+
+export type Scope = { kind: 'everyone' } | { kind: 'role'; role: string };
+
+/** "At least N <role> on the floor" during a window. */
+export interface CoverageRule extends RuleBase {
+  type: 'coverage';
+  /** null = anyone */
+  role: string | null;
+  min: number;
+  /** null = every day */
+  days: Weekday[] | null;
+  /** null = whenever any shift is running that day */
+  from: HHmm | null;
+  to: HHmm | null;
+  appliesTo: RuleTarget[];
+}
+
+export interface NeverTogetherRule extends RuleBase {
+  type: 'never-together';
+  employeeIds: string[];
+}
+
+export interface MaxOnBreakRule extends RuleBase {
+  type: 'max-on-break';
+  max: number;
+  days: Weekday[] | null;
+  from: HHmm | null;
+  to: HHmm | null;
+}
+
+export interface BreakBlackoutRule extends RuleBase {
+  type: 'break-blackout';
+  from: HHmm;
+  to: HHmm;
+  days: Weekday[] | null;
+}
+
+export type LimitKind = 'max-hours-week' | 'min-hours-week' | 'max-shifts-day' | 'max-consecutive-days' | 'min-rest-hours';
+
+/** Team or role default for an employee limit. An employee's own value always wins. */
+export interface LimitRule extends RuleBase {
+  type: 'limit';
+  scope: Scope;
+  limit: LimitKind;
+  value: number;
+}
+
+/** Team or role-wide weekly unavailability (e.g. closed Sundays, minors not after 22:00). */
+export interface UnavailableRule extends RuleBase {
+  type: 'unavailable';
+  scope: Scope;
+  days: Weekday[] | null;
+  from: HHmm | null;
+  to: HHmm | null;
+}
+
+export type Rule = CoverageRule | NeverTogetherRule | MaxOnBreakRule | BreakBlackoutRule | LimitRule | UnavailableRule;
+
+export type BuiltInId =
+  | 'max-hours-week'
+  | 'min-hours-week'
+  | 'max-shifts-day'
+  | 'max-consecutive-days'
+  | 'min-rest'
+  | 'fill-headcount'
+  | 'no-overfill'
+  | 'preferences';
+
+export interface BuiltInSetting {
+  enabled: boolean;
+  severity: Severity;
+}
+
+export interface RuleSet {
+  version: 1;
+  builtIns: Record<BuiltInId, BuiltInSetting>;
+  rules: Rule[];
+  breakPolicy: BreakPolicy;
 }
 
 export interface AppSettings {

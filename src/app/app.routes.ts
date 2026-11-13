@@ -38,6 +38,21 @@ export const routes: Routes = [
     loadComponent: () => import('./features/schedule-print/schedule-print-page').then((m) => m.SchedulePrintPage),
   },
   {
+    path: 'rules',
+    title: 'Rules',
+    loadComponent: () => import('./features/rules/rules-page').then((m) => m.RulesPage),
+  },
+  {
+    path: 'schedules/:id/breaks',
+    title: 'Breaks',
+    loadComponent: () => import('./features/breaks/breaks-page').then((m) => m.BreaksPage),
+  },
+  {
+    path: 'schedules/:id/breaks/print',
+    title: 'Print breaks',
+    loadComponent: () => import('./features/breaks/breaks-print-page').then((m) => m.BreaksPrintPage),
+  },
+  {
     path: 'import',
     title: 'Import from Teams Shifts',
     loadComponent: () => import('./features/import/import-page').then((m) => m.ImportPage),

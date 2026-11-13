@@ -11,7 +11,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { validateSchedule } from '../../core/constraint-checker';
 import { newId, Schedule, ScheduleSource, ShiftSlot } from '../../core/models';
-import { EmployeeStore, ScheduleStore, SettingsStore, ShiftTemplateStore } from '../../core/stores';
+import { EffectiveRules, EmployeeStore, ScheduleStore, SettingsStore, ShiftTemplateStore } from '../../core/stores';
 import { addDays, formatDate, nextWeekStart, parseDate, prettyDate, today } from '../../core/time';
 import { AiSchedulerService } from '../../scheduling/ai-scheduler.service';
 import { generateSchedule, SlotGap } from '../../scheduling/greedy-scheduler';
@@ -83,6 +83,7 @@ interface Draft {
 })
 export class GeneratePage {
   protected readonly employees = inject(EmployeeStore);
+  protected readonly eff = inject(EffectiveRules);
   protected readonly templateStore = inject(ShiftTemplateStore);
   protected readonly settingsStore = inject(SettingsStore);
   private readonly schedules = inject(ScheduleStore);
@@ -109,7 +110,7 @@ export class GeneratePage {
 
   protected readonly violations = computed(() => {
     const d = this.draft();
-    return d ? validateSchedule(d, this.employees.employees(), this.employees.restrictions()) : [];
+    return d ? validateSchedule(d, this.eff.employees(), this.eff.restrictions(), this.eff.ruleSet()) : [];
   });
   protected readonly errors = computed(() => this.violations().filter((v) => v.severity === 'error'));
   protected readonly stats = computed(() => {
@@ -139,8 +140,9 @@ export class GeneratePage {
           startDate,
           weeks,
           slots,
-          employees: this.employees.employees(),
-          restrictions: this.employees.restrictions(),
+          employees: this.eff.employees(),
+          restrictions: this.eff.restrictions(),
+          rules: this.eff.ruleSet(),
         });
         this.draft.set({ source: 'algorithm', startDate, weeks, ...result });
       } else {
@@ -149,8 +151,9 @@ export class GeneratePage {
           startDate,
           weeks,
           slots,
-          employees: this.employees.employees(),
-          restrictions: this.employees.restrictions(),
+          employees: this.eff.employees(),
+          restrictions: this.eff.restrictions(),
+          rules: this.eff.ruleSet(),
           templates: this.templateStore.templates(),
           extraInstructions: this.extraInstructions,
           signal: this.abort.signal,
@@ -184,8 +187,9 @@ export class GeneratePage {
       startDate: d.startDate,
       weeks: d.weeks,
       slots: d.slots,
-      employees: this.employees.employees(),
-      restrictions: this.employees.restrictions(),
+      employees: this.eff.employees(),
+      restrictions: this.eff.restrictions(),
+      rules: this.eff.ruleSet(),
     });
     this.draft.set({
       ...d,

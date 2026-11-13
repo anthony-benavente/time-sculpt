@@ -1,4 +1,5 @@
 import { Employee, newId, PALETTE, Restriction, ShiftTemplate, Weekday } from '../../core/models';
+import { defaultRuleSet } from '../../core/rules-defaults';
 import { StorageService } from '../../core/storage.service';
 import { addDays, nextWeekStart, today } from '../../core/time';
 
@@ -86,4 +87,18 @@ export function loadSampleData(storage: StorageService): void {
   storage.write('employees', employees);
   storage.write('restrictions', restrictions);
   storage.write('shiftTemplates', templates);
+  const rules = defaultRuleSet();
+  rules.rules.push({
+    id: newId(),
+    type: 'coverage',
+    enabled: true,
+    severity: 'hard',
+    role: 'Keyholder',
+    min: 1,
+    days: null,
+    from: null,
+    to: null,
+    appliesTo: ['schedule', 'breaks'],
+  });
+  storage.write('rules', rules);
 }

@@ -1,0 +1,108 @@
+@let r = rule();
+<div class="rule" [class.off]="!r.enabled">
+  <div class="sentence">
+    @switch (r.type) {
+      @case ('coverage') {
+        <span>At least</span>
+        <input class="n" type="number" min="1" [ngModel]="r.min" (ngModelChange)="set({ min: num($event, 1) })" aria-label="Minimum" />
+        <input
+          class="txt"
+          [attr.list]="datalistId"
+          [ngModel]="r.role ?? ''"
+          (change)="setRole($any($event.target).value)"
+          placeholder="anyone"
+          aria-label="Role"
+        />
+        <span>on the floor</span>
+      }
+      @case ('never-together') {
+        <span>Never schedule together:</span>
+        <mat-select
+          multiple
+          [value]="r.employeeIds"
+          (selectionChange)="set({ employeeIds: $event.value })"
+          style="min-width: 240px; max-width: 420px"
+          placeholder="Pick two or more people"
+        >
+          @for (e of employees(); track e.id) {
+            <mat-option [value]="e.id">{{ e.name }}</mat-option>
+          }
+        </mat-select>
+      }
+      @case ('max-on-break') {
+        <span>At most</span>
+        <input class="n" type="number" min="0" [ngModel]="r.max" (ngModelChange)="set({ max: num($event) })" aria-label="Maximum" />
+        <span>people on break at once</span>
+      }
+      @case ('break-blackout') {
+        <span>No breaks from</span>
+        <input type="time" class="txt" style="width: auto" [ngModel]="r.from" (ngModelChange)="$event && set({ from: $event })" />
+        <span>to</span>
+        <input type="time" class="txt" style="width: auto" [ngModel]="r.to" (ngModelChange)="$event && set({ to: $event })" />
+      }
+      @case ('limit') {
+        <input
+          class="txt"
+          [attr.list]="datalistId"
+          [ngModel]="scopeValue()"
+          (change)="setScope($any($event.target).value)"
+          placeholder="Everyone"
+          aria-label="Who"
+        />
+        <span>:</span>
+        <select [ngModel]="r.limit" (ngModelChange)="set({ limit: $event })" aria-label="Limit">
+          @for (k of limitKinds; track k[0]) {
+            <option [value]="k[0]">{{ k[1] }}</option>
+          }
+        </select>
+        <input class="n" type="number" min="0" [ngModel]="r.value" (ngModelChange)="set({ value: num($event) })" aria-label="Value" />
+      }
+      @case ('unavailable') {
+        <input
+          class="txt"
+          [attr.list]="datalistId"
+          [ngModel]="scopeValue()"
+          (change)="setScope($any($event.target).value)"
+          placeholder="Everyone"
+          aria-label="Who"
+        />
+        <span>can't work</span>
+      }
+    }
+    <span class="spacer"></span>
+    <mat-slide-toggle [checked]="r.enabled" (change)="set({ enabled: $event.checked })" matTooltip="Turn this rule on or off" />
+    <button mat-icon-button (click)="removed.emit()" matTooltip="Delete rule"><mat-icon>delete</mat-icon></button>
+  </div>
+
+  <div class="controls">
+    @if (r.type === 'coverage' || r.type === 'max-on-break' || r.type === 'break-blackout' || r.type === 'unavailable') {
+      <app-day-picker [days]="r.days" (changed)="set({ days: $event })" />
+    }
+    @if (r.type === 'coverage' || r.type === 'max-on-break') {
+      <app-time-window [from]="r.from" [to]="r.to" (changed)="set($event)" />
+    }
+    @if (r.type === 'unavailable') {
+      <app-time-window [from]="r.from" [to]="r.to" allLabel="All day" defaultFrom="22:00" defaultTo="24:00" (changed)="set($event)" />
+    }
+    @if (r.type === 'coverage') {
+      <span class="small muted">Used for:</span>
+      <mat-button-toggle-group class="sev" multiple hideMultipleSelectionIndicator [value]="r.appliesTo">
+        <mat-button-toggle value="schedule" (click)="toggleTarget('schedule')">Schedule</mat-button-toggle>
+        <mat-button-toggle value="breaks" (click)="toggleTarget('breaks')">Breaks</mat-button-toggle>
+      </mat-button-toggle-group>
+    }
+    <span class="spacer"></span>
+    <mat-button-toggle-group class="sev" [value]="r.severity" (change)="set({ severity: $event.value })" hideSingleSelectionIndicator>
+      <mat-button-toggle value="hard" matTooltip="Must never be broken; shows as an error">Hard</mat-button-toggle>
+      <mat-button-toggle value="soft" matTooltip="Try to follow; shows as a warning">Soft</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+  <datalist [id]="datalistId">
+    @if (r.type === 'limit' || r.type === 'unavailable') {
+      <option value="Everyone"></option>
+    }
+    @for (role of roles(); track role) {
+      <option [value]="role"></option>
+    }
+  </datalist>
+</div>

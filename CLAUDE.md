@@ -21,23 +21,43 @@ Angular 22 app for a manager to schedule employees: manage employees and their a
 
 ```
 src/app/
-  core/         models.ts, time.ts, constraint-checker.ts, storage.service.ts, stores.ts
-  scheduling/   slot-expander.ts, greedy-scheduler.ts, repair.ts, ai-prompt.ts, ai-scheduler.service.ts
+  core/         models.ts, time.ts, constraint-checker.ts, coverage.ts, storage.service.ts, stores.ts,
+                rules-defaults.ts, rule-resolution.ts, rules-text.ts
+  scheduling/   slot-expander.ts, greedy-scheduler.ts, repair.ts, break-planner.ts, ai-prompt.ts, ai-scheduler.service.ts
   import/       teams-shifts.ts (parse export), teams-import-plan.ts (match people, build schedule)
   features/     one folder per page: employees, restrictions, shifts, generate, schedules,
-                schedule-view, schedule-print, import, settings
+                schedule-view, schedule-print, breaks, rules, import, settings
   shared/       schedule-grid (week grid, by employee or by shift), slot-dialog, confirm-dialog
   testing/      fixtures.ts (emp/tmpl/slot/weekly/timeOff builders for specs)
 ```
 
 ## Key design rules
 
-- **`core/constraint-checker.ts` is the single source of truth for scheduling rules.** The greedy scheduler, AI result validation, import preview, slot dialog and live editor checks all use `canAssign` / `availabilityReasons` / `workloadReasons` / `validateSchedule`. Add or change a rule there, not in callers. Hard rules: active, required role, weekly unavailability, time off, no overlap, max shifts/day, max hours/week, max consecutive days, min rest. Coverage gaps and min-hours shortfalls are warnings.
+- **`core/constraint-checker.ts` (with `coverage.ts`) is the single source of truth for checking scheduling rules.** The greedy scheduler, AI result validation, import preview, slot dialog and live editor checks all use `canAssign` / `availabilityReasons` / `workloadReasons` / `validateSchedule`. Add or change a rule there, not in callers. Hard rules: active, required role, weekly unavailability, time off, no overlap, max shifts/day, max hours/week, max consecutive days, min rest. Coverage gaps and min-hours shortfalls are warnings.
 - `AssignmentState` tracks assignments in absolute minutes from the schedule start. Weeks are 7-day blocks from `schedule.startDate`.
 - Slots (`ShiftSlot`) are concrete dated shifts expanded from `ShiftTemplate`s. Slot id = `${date}|${templateId}`. Imported Teams slots may have a synthetic `templateId` (`teams:...`) and their own `color`.
 - The greedy scheduler (`generateSchedule`) is pure and deterministic for a given `seed`. Existing assignments passed in are **locked**. Auto-fill and repair rely on that.
 - Stores (`stores.ts`) are root services holding signals. Every mutation persists to localStorage (`scheduler.v1.*` keys via `StorageService`). Call `reload()` on stores after writing storage directly (import/sample data).
 - Export/import JSON never includes the Anthropic API key.
+
+## Rules
+
+All configurable rules live in one `RuleSet` (storage key `rules`, `RulesStore`), edited on the `/rules` page (builder tab + plain-English text tab).
+
+- `RuleSet.builtIns`: on/off + hard/soft switches for the rules the app always had (max hours, min hours, max shifts/day, days in a row, rest, fill headcount, overfill, preferences). **The default `RuleSet` reproduces the original behavior exactly**; `validateSchedule(…)` with and without the default rules must give identical output (tested). Core rules (overlap, inactive, time off/availability, required role) are always on and not stored.
+- `RuleSet.rules`: `coverage` ("at least N <role> on the floor", optional days/time window, used by schedule and/or breaks), `never-together`, `max-on-break`, `break-blackout`, and team/role defaults: `limit` and `unavailable` with a `Scope` (everyone or a role).
+- `RuleSet.breakPolicy`: break tiers by shift length, plus buffers, gap and step. Presets are in `rules-defaults.ts`.
+- **Per-person limits and restrictions stay on the employee records and the restrictions list** (not duplicated in the RuleSet). `rule-resolution.ts` fills team/role defaults in (most specific wins: employee, then strictest role, then team) and expands team/role `unavailable` rules into weekly restrictions.
+- **Always pass resolved data to the engines:** pages use `EffectiveRules` (`employees()`, `restrictions()`, `ruleSet()`) and pass `rules` to `validateSchedule`, `generateSchedule`, `repairSchedule`, the AI service and `SlotDialog`. Raw `EmployeeStore` values are for editing only.
+- Checker API: `workloadCheck` returns `{ hard, soft }`; `workloadReasons` = hard only (blocking); `builtIn(rules, id)` gives `'off' | 'hard' | 'soft'`. Soft reasons lower a candidate's score in the scheduler and appear as warnings.
+- `coverage.ts` is the shared timeline/coverage engine (15-min ticks, overnight-aware, optional breaks). The scheduler keeps a `CoverageTracker` in sync through `AssignmentState.onChange`, prefers role holders where coverage is short, and runs a `repairCoverage` swap pass.
+- Text format (`rules-text.ts`): `formatConfig` ↔ `parseConfig` round-trip (tested, rule order is canonical by section). `planApply` turns parsed text into store updates; mentioned people are replaced exactly (past time off kept), and unmentioned people are untouched unless "Replace all people" is ticked. To add a new rule type: model → defaults → resolution/checker → `formatRule` + parser branch → `rule-card.html` → tests.
+
+## Breaks
+
+- `Schedule.breaks: Record<"${slotId}|${employeeId}", PlannedBreak[]>`, stored on the schedule. Keys for removed assignments are simply ignored.
+- `break-planner.ts`: `planBreaks` (greedy with seeded restarts; costs: hard coverage 1000 > soft 100 > max-on-break > stagger 10 > distance from target) and `validateBreaks` for live checks. Breaks are placed between the first/last-minute buffers, outside blackouts, in tier order, at least `minGapMinutes` apart.
+- Pages: `/schedules/:id/breaks` (day picker, timeline, editable table, checks, undo) and `/schedules/:id/breaks/print?date=` (portrait, one day per page, sign-off column).
 
 ## AI scheduling (Claude)
 

@@ -109,7 +109,7 @@ export type EmployeeDialogResult = Omit<Employee, 'id'> & { copy?: CopyOptions }
           </mat-form-field>
           <mat-form-field>
             <mat-label>Max shifts / day</mat-label>
-            <input matInput type="number" min="1" name="maxS" [(ngModel)]="emp.maxShiftsPerDay" required />
+            <input matInput type="number" min="1" name="maxS" [(ngModel)]="emp.maxShiftsPerDay" />
           </mat-form-field>
           <mat-form-field>
             <mat-label>Max days in a row</mat-label>
@@ -217,7 +217,7 @@ export class EmployeeDialog {
       roles: this.roles(),
       minHoursPerWeek: num(this.emp.minHoursPerWeek),
       maxHoursPerWeek: num(this.emp.maxHoursPerWeek),
-      maxShiftsPerDay: Math.max(1, num(this.emp.maxShiftsPerDay) ?? 1),
+      maxShiftsPerDay: num(this.emp.maxShiftsPerDay),
       maxConsecutiveDays: num(this.emp.maxConsecutiveDays),
       minRestHours: num(this.emp.minRestHours),
       ...(this.data.duplicateOf ? { copy: { ...this.copy } } : {}),

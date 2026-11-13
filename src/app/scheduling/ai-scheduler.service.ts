@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { Employee, IsoDate, Restriction, ShiftSlot, ShiftTemplate } from '../core/models';
+import { Employee, IsoDate, Restriction, RuleSet, ShiftSlot, ShiftTemplate } from '../core/models';
 import { SettingsStore } from '../core/stores';
 import { AiScheduleSchema, AppliedAiResult, applyAiResult, buildAiPrompt } from './ai-prompt';
 
@@ -22,6 +22,7 @@ export interface AiGenerateArgs {
   restrictions: readonly Restriction[];
   templates: readonly ShiftTemplate[];
   extraInstructions?: string;
+  rules?: RuleSet | null;
   signal?: AbortSignal;
 }
 
