@@ -29,12 +29,8 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "src/styles.scss"
-            ],
-            "allowedCommonJsDependencies": [
-              "standardwebhooks"
-            ]
+            "styles": ["src/styles.scss"],
+            "allowedCommonJsDependencies": ["standardwebhooks"]
           },
           "configurations": {
             "production": {
@@ -74,6 +70,12 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "deploy": {
+          "builder": "angular-cli-ghpages:deploy",
+          "options": {
+            "baseHref": "/time-sculpt/"
+          }
         }
       }
     }
